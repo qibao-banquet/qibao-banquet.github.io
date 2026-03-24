@@ -476,7 +476,8 @@ function renderReport(){
   }else{
     tbody.innerHTML=data.map(bq=>{const d=new Date(bq.time);return '<tr><td>'+d.toLocaleDateString('zh-CN')+'</td><td>'+bq.location+'</td><td>'+bq.actualCount+'</td><td>'+bq.dishes.length+'</td><td>'+bq.waiter+'</td><td style="color:var(--red);font-weight:700">'+bq.leftover+'%</td></tr>';}).join('');
   }
-  // Top 10 most popular dishes (weighted: 60% order frequency + 40% eaten rate)
+  // Top 10 most popular dishes (weighted: 60% order frequency + 40% eaten coefficient)
+  // Eaten coefficient: 0% leftover=1.0, 25%=0.75, 50%=0.5, 75%=0.25, 100%=0
   const popCount={};
   monthAll.forEach(bq=>{bq.dishes.forEach(d=>{popCount[d]=(popCount[d]||0)+1;});});
   const leftStats={};
@@ -487,24 +488,25 @@ function renderReport(){
       leftStats[dish].total+=val;leftStats[dish].count++;
     }
   });
-  // normalize and weight
   const maxPop=Math.max(...Object.values(popCount),1);
   const allDishes=new Set([...Object.keys(popCount),...Object.keys(leftStats)]);
   const scored=[];
   allDishes.forEach(d=>{
-    const freq=(popCount[d]||0)/maxPop*100; // 0-100
+    const freqScore=(popCount[d]||0)/maxPop*100;
     const ls=leftStats[d];
-    const eaten=ls?100-Math.round(ls.total/ls.count):50; // 0-100, higher=better (less leftover)
-    const score=Math.round(freq*0.6+eaten*0.4);
-    scored.push({name:d,score,freq:popCount[d]||0,leftover:ls?Math.round(ls.total/ls.count):-1});
+    const avgLeftover=ls?ls.total/ls.count:50;
+    const eatCoeff=(100-avgLeftover)/100; // 0%剩余→1.0, 25%→0.75, 50%→0.5, 75%→0.25, 100%→0
+    const eatScore=eatCoeff*100;
+    const score=Math.round(freqScore*0.6+eatScore*0.4);
+    scored.push({name:d,score,freq:popCount[d]||0,leftover:ls?Math.round(avgLeftover):-1,eatCoeff:Math.round(eatCoeff*100)/100});
   });
   const popSorted=scored.sort((a,b)=>b.score-a.score).slice(0,10);
   const popMax=popSorted.length?popSorted[0].score:1;
   const popBox=document.getElementById('top-popular');
   if(!popSorted.length){popBox.innerHTML='<div style="text-align:center;color:var(--textl);padding:16px">暂无数据</div>';
   }else{
-    popBox.innerHTML='<p style="font-size:11px;color:var(--textl);margin-bottom:8px">综合评分 = 点单频率×60% + 吃光程度×40%</p>'+
-    popSorted.map((p,i)=>'<div class="bar-row"><div class="bar-label" style="width:auto;max-width:130px;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+p.name+' | 点'+p.freq+'次'+(p.leftover>=0?' | 剩余'+p.leftover+'%':'')+'">'+(i+1)+'. '+p.name+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(Math.round(p.score/popMax*100),5)+'%;background:linear-gradient(90deg,var(--gold),#E8A317)"><span>'+p.score+'分</span></div></div><div style="font-size:10px;color:var(--textl);width:60px;text-align:right">点'+p.freq+'次</div></div>').join('');
+    popBox.innerHTML='<p style="font-size:11px;color:var(--textl);margin-bottom:8px">综合评分 = 点单频率×60% + 吃光系数×40%（剩0%=1.0 | 剩25%=0.75 | 剩50%=0.5 | 剩75%=0.25 | 剩100%=0）</p>'+
+    popSorted.map((p,i)=>'<div class="bar-row"><div class="bar-label" style="width:auto;max-width:130px;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+p.name+' | 点'+p.freq+'次 | 吃光系数'+p.eatCoeff+'">'+(i+1)+'. '+p.name+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(Math.round(p.score/popMax*100),5)+'%;background:linear-gradient(90deg,var(--gold),#E8A317)"><span>'+p.score+'分</span></div></div><div style="font-size:10px;color:var(--textl);width:70px;text-align:right">'+p.freq+'次|'+p.eatCoeff+'</div></div>').join('');
   }
   // Top 10 most leftover dishes
   const leftSorted=Object.entries(leftStats).map(([d,s])=>([d,Math.round(s.total/s.count)])).sort((a,b)=>b[1]-a[1]).slice(0,10);
