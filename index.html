@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宴会点菜系统</title>
+<style>
+:root{--primary:#8B0000;--gold:#C5A55A;--bg:#FDF8F0;--card:#fff;--text:#2C2C2C;--dim:#666;--border:#E8DDD0;--shadow:0 2px 12px rgba(0,0,0,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+
+.hd{background:linear-gradient(135deg,var(--primary),#5C0000);color:#fff;text-align:center;padding:36px 20px 28px;position:relative}
+.hd::after{content:"";position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);width:50px;height:3px;background:var(--gold);border-radius:2px}
+.hd h1{font-size:26px;letter-spacing:6px;margin-bottom:6px}
+.hd p{font-size:13px;opacity:.75;letter-spacing:2px}
+
+.wrap{max-width:820px;margin:0 auto;padding:0 16px}
+
+.info{margin-top:36px}
+.info .card{background:var(--card);border-radius:12px;padding:24px 28px;box-shadow:var(--shadow);display:flex;gap:20px;flex-wrap:wrap}
+.info .f{flex:1;min-width:160px}
+.info label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px;font-weight:500}
+.info input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:#FAFAFA;transition:border .2s}
+.info input:focus{outline:none;border-color:var(--gold);background:#fff}
+
+.search{margin-top:16px}
+.search input{width:100%;padding:10px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fff}
+.search input:focus{outline:none;border-color:var(--gold)}
+
+.cats{margin-top:16px;padding-bottom:80px}
+.cat{background:var(--card);border-radius:12px;margin-bottom:14px;box-shadow:var(--shadow);overflow:hidden}
+.cat-h{padding:14px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;transition:background .15s}
+.cat-h:hover{background:#FDF5EB}
+.cat-h h2{font-size:17px;font-weight:600;color:var(--primary);display:flex;align-items:center;gap:8px}
+.cat-h .ic{font-size:20px}
+.cat-h .rt{display:flex;align-items:center;gap:8px}
+.cat-h .bg{background:var(--gold);color:#fff;font-size:11px;padding:1px 9px;border-radius:20px;font-weight:600;display:none}
+.cat-h .bg.on{display:inline-block}
+.cat-h .aw{font-size:12px;color:#aaa;transition:transform .25s}
+.cat.open .aw{transform:rotate(180deg)}
+.cat-b{display:none;padding:0 20px 16px}
+.cat.open .cat-b{display:block}
+
+.sub{margin-top:12px}
+.sub h3{font-size:13px;color:var(--gold);font-weight:600;margin-bottom:8px;padding-bottom:5px;border-bottom:1px dashed var(--border);letter-spacing:1px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+.di{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:7px;cursor:pointer;border:1.5px solid transparent;transition:all .12s}
+.di:hover{background:#FDF5EB}
+.di.sel{background:#FFF8F0;border-color:var(--gold)}
+.di input{display:none}
+.di .ck{width:18px;height:18px;border:2px solid #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:transparent;transition:all .12s}
+.di.sel .ck{background:var(--gold);border-color:var(--gold);color:#fff}
+.di .nm{font-size:13px;line-height:1.4}
+
+.bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:14px;z-index:100;box-shadow:0 -4px 12px rgba(0,0,0,.05)}
+.bar .cnt{font-size:14px;color:var(--dim)}
+.bar .cnt b{color:var(--primary);font-size:18px}
+.bar .btn-g{background:linear-gradient(135deg,var(--primary),#5C0000);color:#fff;border:none;padding:10px 32px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:2px;font-family:inherit;transition:all .2s}
+.bar .btn-g:hover{box-shadow:0 4px 16px rgba(139,0,0,.3)}
+.bar .btn-c{background:none;border:1.5px solid #ccc;padding:8px 18px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--dim);font-family:inherit}
+.bar .btn-c:hover{border-color:var(--primary);color:var(--primary)}
+
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;justify-content:center;align-items:flex-start;padding:24px 16px;overflow-y:auto}
+.ov.show{display:flex}
+.pv{background:#FFFDF7;width:100%;max-width:600px;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+
+.pv-hd{background:linear-gradient(135deg,var(--primary),#5C0000);color:#fff;text-align:center;padding:36px 24px 28px;position:relative}
+.pv-hd::before,.pv-hd::after{content:"◆";position:absolute;top:50%;transform:translateY(-50%);color:var(--gold);opacity:.25;font-size:36px}
+.pv-hd::before{left:16px}.pv-hd::after{right:16px}
+.pv-hd h1{font-size:28px;letter-spacing:8px;font-weight:700;margin-bottom:14px}
+.pv-hd .line{width:40px;height:2px;background:var(--gold);margin:0 auto 14px}
+.pv-hd .meta{font-size:13px;opacity:.9;line-height:1.8}
+
+.pv-bd{padding:28px 24px}
+.pv-cat{margin-bottom:22px}
+.pv-cat h3{font-size:15px;color:var(--primary);font-weight:700;letter-spacing:3px;text-align:center;margin-bottom:10px}
+.pv-cat h3::before,.pv-cat h3::after{content:"— ";color:var(--gold)}
+.pv-cat h3::after{content:" —"}
+.pv-sub h4{font-size:12px;color:var(--gold);margin:8px 0 4px;font-weight:500;text-align:center}
+.pv-ds{text-align:center;font-size:14px;line-height:2.2;color:#333}
+.pv-ds span{margin:0 3px;white-space:nowrap}
+.pv-ds span+span::before{content:" · ";color:var(--gold)}
+
+.pv-ft{text-align:center;padding:18px 24px 24px;border-top:1px dashed var(--border);margin:0 24px}
+.pv-ft .wish{font-size:17px;color:var(--primary);letter-spacing:4px;font-weight:600}
+.pv-ft .tot{font-size:12px;color:var(--dim);margin-top:6px}
+
+.pv-act{display:flex;gap:10px;justify-content:center;padding:16px 24px 24px}
+.pv-act button{padding:9px 24px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:1px;transition:all .2s}
+.btn-p{background:var(--primary);color:#fff;border:none}
+.btn-p:hover{opacity:.9}
+.btn-b{background:none;border:1.5px solid #ccc;color:var(--dim)}
+.btn-b:hover{border-color:var(--primary);color:var(--primary)}
+
+@media print{
+  body{background:#fff}
+  .hd,.wrap,.bar,.pv-act{display:none!important}
+  .ov{position:static;background:none;display:block!important;padding:0}
+  .pv{box-shadow:none;border-radius:0;max-width:100%}
+  .pv-hd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media(max-width:600px){
+  .hd h1{font-size:21px;letter-spacing:3px}
+  .info .card{flex-direction:column;gap:14px}
+  .grid{grid-template-columns:1fr 1fr}
+  .pv-hd h1{font-size:22px;letter-spacing:5px}
+}
+</style>
+</head>
+<body>
+
+<div class="hd"><h1>宴 会 点 菜</h1><p>精选菜品 · 定制菜单</p></div>
+
+<div class="wrap">
+<div class="info"><div class="card">
+  <div class="f"><label>📅 宴会时间</label><input type="datetime-local" id="iTime"></div>
+  <div class="f"><label>👥 宴会人数</label><input type="number" id="iNum" min="1" max="200" placeholder="请输入人数"></div>
+  <div class="f"><label>📝 宴会名称（选填）</label><input type="text" id="iName" placeholder="如：接待晚宴"></div>
+</div></div>
+<div class="search"><input type="text" id="iSearch" placeholder="🔍 搜索菜品..." oninput="render(this.value)"></div>
+<div class="cats" id="cats"></div>
+</div>
+
+<div class="bar">
+  <div class="cnt">已选 <b id="sc">0</b> 道菜</div>
+  <button class="btn-c" onclick="clearAll()">清空</button>
+  <button class="btn-g" onclick="gen()">生 成 菜 单</button>
+</div>
+
+<div class="ov" id="ov" onclick="if(event.target===this)closeOv()">
+  <div class="pv" id="pv"></div>
+</div>
+
+<script>
+var D=[
+{n:"凉菜",ic:"🥗",s:[
+{n:"海鲜凉菜",d:["咸水海白虾","乳黄瓜老醋蛰头","捞汁海花螺","捞汁香芹海参","酥骨舟山带鱼","贝尖儿黄瓜花","贝尖拌丝瓜尖","老醋蛰头鲜花生","盐水青柠海白虾"]},
+{n:"粤式/特色凉菜",d:["变蛋黑鱼籽酱","自制花雕熟醉蟹","老上海五香熏鱼","老卤去骨猪蹄","老汤自制酱肘花","老汤酱香皮冻"]},
+{n:"川味/香辣凉菜",d:["擂椒拌皮蛋","柠檬剁椒凤爪","青芥美极木耳"]},
+{n:"东北/家常凉菜",d:["东北蘸酱菜","五香酱牛腱子","凉拌猪耳朵","哈尔滨风干肠","丝瓜尖拌桃仁","坚果蓝莓山药泥","桂花蓝莓山药"]},
+{n:"山东风味拌菜",d:["捞汁爽口萝卜","捞汁自产蔬菜","捞汁花菜杆","核桃仁拌荠菜","桂花糖蓝莓山药","桂花马蹄圣女果","清口自产苤蓝丝","爽口捞汁菜根香","爽口桂花马蹄","爽口自产腌菜","爽口自产菜根","爽脆捞汁海笋","皮蛋花生拌青瓜","素什锦","老醋皮蛋花生","花生青瓜皮蛋","苤蓝腌香菜根","萝卜黄瓜蘸酱菜","青瓜拌牛肉","青瓜老醋蜇头","青瓜花生拌牛肉","青瓜花生皮蛋","香椿拌北豆腐","香椿苗拌核桃仁"]}
+]},
+{n:"热菜",ic:"🔥",s:[
+{n:"海鲜（高端宴请）",d:["五粒干烧大乌参","章丘大葱烧辽参","响螺片炒鲜芦笋","牛肝菌炒鲜芦笋","姜葱上汤焗海蟹","姜葱焗炒梭子蟹","清蒸兴化大闸蟹","清蒸泰州大闸蟹","苏叶清蒸大闸蟹","清蒸去骨东星斑","油焖泰国黑虎虾","油焖茄汁软皮虾","油焖黑虎大对虾","宫爆黑虎大虾球","果仁宫爆大虾球","基围虾鲜牛百叶","基围虾鳜鱼片","白灼青笋鲜鲍片","砂锅百合焗鲍鱼","砂锅鲍菇焗海虾","蒜籽烧野生黄鱼","红烧东海大刀鱼","蒜蓉粉丝蒸澳带","蒜蓉粉丝日月贝","蒜蓉粉丝蒸扇贝","豉汁粉丝蒸日月贝","黄蛤煮大豆腐","海鲜菇白菜心象牙白萝卜","象牙白烧大乌参"]},
+{n:"粤菜（高端清鲜）",d:["咸肉鲜笋腌笃鲜","黄鸡鲜笋腌笃鲜","双蛋上汤沁苋菜","上汤灼鲜豌豆尖","百花蒸酿秋葵","砂锅蒜蓉焗海鲜","金牌广式炸乳鸽","黑椒五彩和牛粒","热捞澳洲雪花牛肋","金汤针菇雪花牛"]},
+{n:"川菜/香辣",d:["四川鲜煮猪蹄","川汁温煮三黄鸡","川汁白斩三黄鸡","豆豉麻椒小炒肉","麻椒小炒梅花肉","螺丝椒炒梅花肉","螺丝椒炒走地鸡","香辣带骨小羔羊","香辣莲藕炖羊肉","香辣萝卜炖羊排","香辣萝卜炖羔羊"]},
+{n:"东北菜（主场特色）",d:["东北排骨一锅出","东北溜肉段","东北粉丝烩酸菜","内蒙巴盟烩酸菜","毡房卤肉烩酸菜","卤肉土豆烩酸菜","砂锅血肠炖酸菜","排骨炖油豆角","红烧肉焖油豆角","红烧肉烧白不老","黑猪肉炖白不老","丸子粉条炖白菜","丸子豆腐炖白菜","白菜粉条狮子头","锅包肉","自制电烤羊肉串","孜然烤法式羊排","内蒙羊排炖萝卜","土猪肉烧油豆角","铁锅茄子炖土豆","自产白菜炖豆腐","冻豆腐魔芋结","炒蚕蛹"]},
+{n:"家常菜/清炒",d:["小葱摊自产鸡蛋","山药木耳炒荷兰豆","木耳马蹄炒西芹","核桃仁清炒西芹","梅花肉炒自产青椒","百合清炒西芹","贵族南瓜炒百合","自产芹菜炒百合","茼蒿小油菜","茼蒿莲藕青笋木耳","白萝卜莴笋莲藕冬瓜","小腊肠炒芥蓝面","小腊肠炒黄瓜钱","广东腊味炒蜜豆","腊肠桃仁芥兰肚","腊肠生炒芥兰苗","小狮子头炖白菜豆腐","狮子头煮卞萝卜丝","白菜芋结红烧肉","椒丝豉油淋秋葵","豉油汁白灼芥兰","砂锅生炒芥兰","砂锅酱烧小青瓜","雪花牛肉卷羔羊上脑卷","鱼羊鲜煮卞萝卜","鲜马蹄清炒西芹","马蹄木耳炒芥兰","马蹄木耳炒西芹","马蹄木耳鲜芦笋","酸菜丝东北木耳","大白菜鲜香菇绣球菌","粉条丸子熬白菜","白菜芋结红烧肉"]},
+{n:"火锅",d:["和牛火锅"]}
+]},
+{n:"汤品",ic:"🍲",s:[
+{n:"粤式滋补汤",d:["国宴菊花豆腐汤","石斛甘蔗马蹄玉米汤","石斛红枣炖乳鸽","石斛花松茸炖花胶","鲜松茸炖鸡清汤","红枣枸杞乌鸡汤"]},
+{n:"海鲜/清汤",d:["敖汉小米煨大连海参","海鲜乌鱼蛋汤"]}
+]},
+{n:"主食",ic:"🍚",s:[
+{n:"北方主食",d:["卤肉萝卜粉条蒸饺","家常烙肉饼","家常猪肉大葱饼","家常猪肉馅饼","猪肉白菜水饺","酱肉萝卜粉条包子","小笼包两款（荤素）","敖汉新小米香粥","煮敖汉糯玉米","火锅面"]},
+{n:"西北风味",d:["荠菜鸡蛋炝锅面","西北臊子干拌面"]}
+]},
+{n:"水果",ic:"🍇",s:[
+{n:"",d:["圣女果甜山楂黄骅冬枣","开心果蓝莓青提","樱桃金桔草莓","樱桃金桔青提","水果拼盘","砂糖橘草莓樱桃李子","葡萄","葵花籽开心果","青提圣女果"]}
+]}
+];
+
+var sel=new Set();
+
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+function render(q){
+  q=(q||"").trim();
+  var box=document.getElementById("cats");
+  box.innerHTML="";
+  D.forEach(function(cat){
+    var body="",vis=0;
+    cat.s.forEach(function(sub){
+      var items="";
+      sub.d.forEach(function(dish){
+        if(q&&dish.indexOf(q)<0)return;
+        vis++;
+        var id=cat.n+"||"+sub.n+"||"+dish;
+        var on=sel.has(id);
+        items+='<label class="di'+(on?" sel":"")+'" data-id="'+esc(id)+'">'
+          +'<input type="checkbox"'+(on?" checked":"")+'>'
+          +'<span class="ck">✓</span><span class="nm">'+esc(dish)+'</span></label>';
+      });
+      if(!items)return;
+      body+='<div class="sub">';
+      if(sub.n)body+='<h3>'+esc(sub.n)+'</h3>';
+      body+='<div class="grid">'+items+'</div></div>';
+    });
+    if(!body)return;
+    var sc=0;sel.forEach(function(id){if(id.indexOf(cat.n+"||")===0)sc++});
+    var el=document.createElement("div");
+    el.className="cat"+(q?" open":"");
+    el.innerHTML='<div class="cat-h"><h2><span class="ic">'+cat.ic+'</span>'+cat.n+'</h2>'
+      +'<div class="rt"><span class="bg'+(sc?" on":"")+'">'+sc+'</span><span class="aw">▼</span></div></div>'
+      +'<div class="cat-b">'+body+'</div>';
+    el.querySelector(".cat-h").onclick=function(){el.classList.toggle("open")};
+    box.appendChild(el);
+  });
+  bindDish();
+}
+
+function bindDish(){
+  document.querySelectorAll(".di").forEach(function(el){
+    el.onclick=function(e){
+      e.preventDefault();
+      var id=this.dataset.id;
+      if(sel.has(id)){sel.delete(id);this.classList.remove("sel")}
+      else{sel.add(id);this.classList.add("sel")}
+      updCnt();updBadge();
+    };
+  });
+}
+
+function updCnt(){document.getElementById("sc").textContent=sel.size}
+
+function updBadge(){
+  document.querySelectorAll(".cat-h").forEach(function(h){
+    var t=h.querySelector("h2").innerText;
+    var b=h.querySelector(".bg");
+    var cn="";D.forEach(function(c){if(t.indexOf(c.n)>=0)cn=c.n});
+    if(!cn)return;
+    var n=0;sel.forEach(function(id){if(id.indexOf(cn+"||")===0)n++});
+    b.textContent=n;
+    if(n)b.classList.add("on");else b.classList.remove("on");
+  });
+}
+
+function clearAll(){sel.clear();updCnt();render(document.getElementById("iSearch").value)}
+
+function gen(){
+  if(!sel.size){alert("请至少选择一道菜品！");return}
+  var t=document.getElementById("iTime").value;
+  var num=document.getElementById("iNum").value;
+  var nm=document.getElementById("iName").value||"宴会菜单";
+  if(!t){alert("请填写宴会时间！");return}
+  if(!num){alert("请填写宴会人数！");return}
+
+  var dt=new Date(t);
+  var ts=dt.getFullYear()+"年"+(dt.getMonth()+1)+"月"+dt.getDate()+"日 "
+    +String(dt.getHours()).padStart(2,"0")+":"+String(dt.getMinutes()).padStart(2,"0");
+
+  var html='<div class="pv-hd"><h1>'+esc(nm)+'</h1><div class="line"></div>'
+    +'<div class="meta">'+esc(ts)+'<br>宴请人数：'+esc(num)+'位</div></div>';
+  html+='<div class="pv-bd">';
+
+  D.forEach(function(cat){
+    var items=[];
+    cat.s.forEach(function(sub){
+      var dishes=[];
+      sub.d.forEach(function(dish){
+        var id=cat.n+"||"+sub.n+"||"+dish;
+        if(sel.has(id))dishes.push(dish);
+      });
+      if(dishes.length)items.push({name:sub.n,dishes:dishes});
+    });
+    if(!items.length)return;
+    html+='<div class="pv-cat"><h3>'+cat.ic+" "+cat.n+'</h3>';
+    items.forEach(function(it){
+      if(it.name)html+='<div class="pv-sub"><h4>'+esc(it.name)+'</h4></div>';
+      html+='<div class="pv-ds">'+it.dishes.map(function(d){return'<span>'+esc(d)+'</span>'}).join("")+'</div>';
+    });
+    html+='</div>';
+  });
+
+  html+='</div>';
+  html+='<div class="pv-ft"><div class="wish">祝您用餐愉快</div>'
+    +'<div class="tot">共 '+sel.size+' 道菜品 · '+esc(num)+'位宾客</div></div>';
+  html+='<div class="pv-act">'
+    +'<button class="btn-b" onclick="closeOv()">返回修改</button>'
+    +'<button class="btn-p" onclick="copyMenu()">📋 复制菜单</button>'
+    +'<button class="btn-p" onclick="window.print()">🖨️ 打印菜单</button>'
+    +'</div>';
+
+  document.getElementById("pv").innerHTML=html;
+  document.getElementById("ov").classList.add("show");
+}
+
+function copyMenu(){
+  var t=document.getElementById("iTime").value;
+  var num=document.getElementById("iNum").value;
+  var nm=document.getElementById("iName").value||"宴会菜单";
+  var dt=new Date(t);
+  var ts=dt.getFullYear()+"年"+(dt.getMonth()+1)+"月"+dt.getDate()+"日 "
+    +String(dt.getHours()).padStart(2,"0")+":"+String(dt.getMinutes()).padStart(2,"0");
+
+  var txt="【"+nm+"】\n";
+  txt+="时间："+ts+"\n";
+  txt+="人数："+num+"位\n";
+  txt+="━━━━━━━━━━━━━━\n";
+
+  D.forEach(function(cat){
+    var items=[];
+    cat.s.forEach(function(sub){
+      var dishes=[];
+      sub.d.forEach(function(dish){
+        var id=cat.n+"||"+sub.n+"||"+dish;
+        if(sel.has(id))dishes.push(dish);
+      });
+      if(dishes.length)items.push({name:sub.n,dishes:dishes});
+    });
+    if(!items.length)return;
+    txt+="\n"+cat.ic+" "+cat.n+"\n";
+    items.forEach(function(it){
+      if(it.name)txt+="  ▸ "+it.name+"\n";
+      it.dishes.forEach(function(d,i){txt+="    "+(i+1)+"、"+d+"\n"});
+    });
+  });
+
+  txt+="\n━━━━━━━━━━━━━━\n";
+  txt+="共 "+sel.size+" 道菜品 · "+num+"位宾客\n";
+  txt+="祝用餐愉快 🎉";
+
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      alert("✅ 菜单已复制！可直接粘贴到微信发给厨师长");
+    }).catch(function(){fallbackCopy(txt)});
+  }else{fallbackCopy(txt)}
+}
+
+function fallbackCopy(txt){
+  var ta=document.createElement("textarea");
+  ta.value=txt;ta.style.position="fixed";ta.style.left="-9999px";
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");alert("✅ 菜单已复制！可直接粘贴到微信发给厨师长")}
+  catch(e){alert("复制失败，请手动选择文字复制")}
+  document.body.removeChild(ta);
+}
+
+function closeOv(){document.getElementById("ov").classList.remove("show")}
+
+render("");
+</script>
+</body>
+</html>
