@@ -171,8 +171,9 @@ table{font-size:11px}th,td{padding:6px}
 <div id="tab-report" class="tab-content">
 <div class="month-picker"><label style="font-weight:600">📅 选择月份：</label><input type="month" id="rpt-month" onchange="renderReport()"></div>
 <div id="rpt-stats"></div>
-<div class="card"><h3>📋 宴会明细</h3><div style="overflow-x:auto"><table><thead><tr><th>日期</th><th>地点</th><th>人数</th><th>菜品数</th><th>服务员</th><th>剩余量</th></tr></thead><tbody id="rpt-tbody"></tbody></table></div></div>
-<div class="card"><h3>👩‍🍳 服务员考核排名</h3><div id="waiter-rank"></div></div>
+<div class="card"><h3>📋 宴会明细</h3><div style="overflow-x:auto"><table><thead><tr><th>日期</th><th>地点</th><th>人数</th><th>菜品数</th><th>服务员</th><th>平均剩余</th></tr></thead><tbody id="rpt-tbody"></tbody></table></div></div>
+<div class="card"><h3>🏆 最受欢迎菜品 Top 10</h3><div id="top-popular"></div></div>
+<div class="card"><h3>🚫 剩余量最多菜品 Top 10</h3><div id="top-leftover"></div></div>
 </div>
 </div>
 <div class="floating-count" id="fc"></div>
@@ -381,26 +382,64 @@ function finishBanquet(id){
 // ===== RATE BANQUET =====
 function rateBanquet(id){
   const data=load();const bq=data.find(b=>b.id===id);if(!bq)return;
-  // create modal
   const mask=document.createElement('div');
-  mask.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
+  mask.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
   const box=document.createElement('div');
-  box.style.cssText='background:#fff;border-radius:16px;padding:24px;max-width:400px;width:100%';
-  box.innerHTML='<h3 style="color:var(--red);margin-bottom:16px;text-align:center">⭐ 宴会评价</h3>'+
-    '<p style="font-size:13px;color:var(--textl);margin-bottom:12px;text-align:center">选择服务员并填写剩余量</p>'+
-    '<div class="radio-cards" id="rate-waiters">'+WAITERS.map(w=>'<div class="radio-card" data-w="'+w.name+'" onclick="document.querySelectorAll(\'#rate-waiters .radio-card\').forEach(c=>c.classList.remove(\'selected\'));this.classList.add(\'selected\')"><div class="emoji">'+w.emoji+'</div><div class="name">'+w.name+'</div></div>').join('')+'</div>'+
-    '<div style="margin-top:16px"><label style="font-size:13px;font-weight:600">剩余量</label><div class="slider-group"><input type="range" id="rate-slider" min="0" max="100" value="20" oninput="document.getElementById(\'rate-val\').textContent=this.value+\'%\'"><div class="slider-value" id="rate-val">20%</div></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--textl);margin-top:2px"><span>0% 无剩余</span><span>100% 全剩</span></div></div>'+
-    '<div style="display:flex;gap:10px;margin-top:20px"><button class="btn btn-outline" style="flex:1" onclick="this.closest(\'div[style*=fixed]\').remove()">取消</button><button class="btn btn-primary" style="flex:1" id="rate-submit">提交评价</button></div>';
+  box.style.cssText='background:#fff;border-radius:16px;padding:24px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;margin:auto';
+  let dishRows=bq.dishes.map((d,i)=>{
+    const saved=bq.dishLeftovers&&bq.dishLeftovers[d]!==undefined?bq.dishLeftovers[d]:0;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'+
+      '<div style="flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+d+'">'+d+'</div>'+
+      '<div style="display:flex;gap:4px;flex-shrink:0">'+
+      [0,25,50,75,100].map(v=>'<button class="rbtn" data-dish="'+i+'" data-val="'+v+'" onclick="pickLeft(this,'+i+','+v+')" style="padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;cursor:pointer;background:'+(saved===v?'var(--red)':'#fff')+';color:'+(saved===v?'#fff':'var(--text)')+'">'+v+'%</button>').join('')+
+      '</div></div>';
+  }).join('');
+  box.innerHTML='<h3 style="color:var(--red);margin-bottom:4px;text-align:center">⭐ 宴会评价</h3>'+
+    '<p style="font-size:12px;color:var(--textl);margin-bottom:12px;text-align:center">选择服务员，为每道菜填写剩余量</p>'+
+    '<div style="margin-bottom:12px"><label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">服务员</label>'+
+    '<div class="radio-cards" id="rate-waiters">'+WAITERS.map(w=>'<div class="radio-card" data-w="'+w.name+'" onclick="document.querySelectorAll(\'#rate-waiters .radio-card\').forEach(c=>c.classList.remove(\'selected\'));this.classList.add(\'selected\')"><div class="emoji">'+w.emoji+'</div><div class="name">'+w.name+'</div></div>').join('')+'</div></div>'+
+    '<div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><label style="font-size:13px;font-weight:600">菜品剩余量</label>'+
+    '<div style="display:flex;gap:4px"><button class="btn btn-outline btn-sm" onclick="setAllLeft(0)" style="font-size:11px;padding:3px 8px">全部0%</button><button class="btn btn-outline btn-sm" onclick="setAllLeft(25)" style="font-size:11px;padding:3px 8px">全部25%</button></div></div>'+
+    '<div id="dish-rate-list">'+dishRows+'</div>'+
+    '<div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-outline" style="flex:1" onclick="this.closest(\'div[style*=fixed]\').remove()">取消</button><button class="btn btn-primary" style="flex:1" id="rate-submit">提交评价</button></div>';
   mask.appendChild(box);document.body.appendChild(mask);
   mask.addEventListener('click',e=>{if(e.target===mask)mask.remove();});
+  // store temp leftover values
+  window._rateLeftovers={};
+  bq.dishes.forEach((d,i)=>{window._rateLeftovers[i]=bq.dishLeftovers&&bq.dishLeftovers[d]!==undefined?bq.dishLeftovers[d]:0;});
   document.getElementById('rate-submit').addEventListener('click',()=>{
     const sel=box.querySelector('.radio-card.selected');
     if(!sel){toast('请选择服务员');return;}
     const waiter=sel.dataset.w;
-    const leftover=parseInt(document.getElementById('rate-slider').value);
-    bq.waiter=waiter;bq.leftover=leftover;bq.status='rated';
-    bq.logs.push({t:new Date().toLocaleString('zh-CN'),msg:'评价完成：服务员'+waiter+'，剩余量'+leftover+'%'});
+    bq.waiter=waiter;
+    bq.dishLeftovers={};
+    let totalLeft=0;
+    bq.dishes.forEach((d,i)=>{const v=window._rateLeftovers[i]||0;bq.dishLeftovers[d]=v;totalLeft+=v;});
+    bq.leftover=Math.round(totalLeft/bq.dishes.length);
+    bq.status='rated';
+    bq.logs.push({t:new Date().toLocaleString('zh-CN'),msg:'评价完成：服务员'+waiter+'，平均剩余量'+bq.leftover+'%'});
     save(data);mask.remove();toast('评价提交成功！');renderRecords();
+  });
+}
+function pickLeft(el,idx,val){
+  window._rateLeftovers[idx]=val;
+  document.querySelectorAll('.rbtn[data-dish="'+idx+'"]').forEach(b=>{
+    const active=parseInt(b.dataset.val)===val;
+    b.style.background=active?'var(--red)':'#fff';
+    b.style.color=active?'#fff':'var(--text)';
+  });
+}
+function setAllLeft(val){
+  const btns=document.querySelectorAll('.rbtn');
+  const indices=new Set();
+  btns.forEach(b=>indices.add(b.dataset.dish));
+  indices.forEach(idx=>{
+    window._rateLeftovers[parseInt(idx)]=val;
+    document.querySelectorAll('.rbtn[data-dish="'+idx+'"]').forEach(b=>{
+      const active=parseInt(b.dataset.val)===val;
+      b.style.background=active?'var(--red)':'#fff';
+      b.style.color=active?'#fff':'var(--text)';
+    });
   });
 }
 
@@ -417,29 +456,51 @@ function renderReport(){
   const monthInput=document.getElementById('rpt-month');
   if(!monthInput.value){const now=new Date();monthInput.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');}
   const[y,m]=monthInput.value.split('-').map(Number);
-  const data=load().filter(b=>{
+  const allData=load();
+  const data=allData.filter(b=>{
     if(b.status!=='rated')return false;
     const d=new Date(b.time);return d.getFullYear()===y&&d.getMonth()+1===m;
   }).sort((a,b)=>new Date(a.time)-new Date(b.time));
+  // also get all banquets this month (including unrated) for popularity
+  const monthAll=allData.filter(b=>{
+    const d=new Date(b.time);return d.getFullYear()===y&&d.getMonth()+1===m&&b.dishes&&b.dishes.length>0;
+  });
   // stats
   const total=data.length;
   const avgLeft=total?Math.round(data.reduce((s,b)=>s+b.leftover,0)/total):0;
-  const waiterStats={};
-  data.forEach(b=>{if(!waiterStats[b.waiter])waiterStats[b.waiter]={count:0,total:0};waiterStats[b.waiter].count++;waiterStats[b.waiter].total+=b.leftover;});
-  let bestWaiter='-';let bestAvg=999;
-  for(const[w,s]of Object.entries(waiterStats)){const avg=s.total/s.count;if(avg<bestAvg){bestAvg=avg;bestWaiter=w;}}
-  document.getElementById('rpt-stats').innerHTML='<div class="stat-cards"><div class="stat-card"><div class="value">'+total+'</div><div class="label">本月宴会次数</div></div><div class="stat-card"><div class="value">'+avgLeft+'%</div><div class="label">平均剩余量</div></div><div class="stat-card"><div class="value">'+bestWaiter+'</div><div class="label">最佳服务员</div></div></div>';
+  const totalBanquets=monthAll.length;
+  document.getElementById('rpt-stats').innerHTML='<div class="stat-cards"><div class="stat-card"><div class="value">'+totalBanquets+'</div><div class="label">本月宴会总数</div></div><div class="stat-card"><div class="value">'+total+'</div><div class="label">已评价宴会</div></div><div class="stat-card"><div class="value">'+avgLeft+'%</div><div class="label">平均剩余量</div></div></div>';
   // table
   const tbody=document.getElementById('rpt-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--textl);padding:20px">本月暂无已评价的宴会数据</td></tr>';
   }else{
     tbody.innerHTML=data.map(bq=>{const d=new Date(bq.time);return '<tr><td>'+d.toLocaleDateString('zh-CN')+'</td><td>'+bq.location+'</td><td>'+bq.actualCount+'</td><td>'+bq.dishes.length+'</td><td>'+bq.waiter+'</td><td style="color:var(--red);font-weight:700">'+bq.leftover+'%</td></tr>';}).join('');
   }
-  // waiter rank
-  const rankBox=document.getElementById('waiter-rank');
-  if(!Object.keys(waiterStats).length){rankBox.innerHTML='<div style="text-align:center;color:var(--textl);padding:16px">暂无数据</div>';return;}
-  const sorted=Object.entries(waiterStats).map(([w,s])=>({name:w,avg:Math.round(s.total/s.count),count:s.count})).sort((a,b)=>a.avg-b.avg);
-  rankBox.innerHTML=sorted.map(w=>'<div class="bar-row"><div class="bar-label">'+w.name+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(w.avg,5)+'%"><span>'+w.avg+'%</span></div></div><div style="font-size:11px;color:var(--textl);width:40px">'+w.count+'次</div></div>').join('');
+  // Top 10 most popular dishes
+  const popCount={};
+  monthAll.forEach(bq=>{bq.dishes.forEach(d=>{popCount[d]=(popCount[d]||0)+1;});});
+  const popSorted=Object.entries(popCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const popMax=popSorted.length?popSorted[0][1]:1;
+  const popBox=document.getElementById('top-popular');
+  if(!popSorted.length){popBox.innerHTML='<div style="text-align:center;color:var(--textl);padding:16px">暂无数据</div>';
+  }else{
+    popBox.innerHTML=popSorted.map((p,i)=>'<div class="bar-row"><div class="bar-label" style="width:auto;max-width:120px;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+p[0]+'">'+(i+1)+'. '+p[0]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(p[1]/popMax*100)+'%;background:linear-gradient(90deg,var(--gold),#E8A317)"><span>'+p[1]+'次</span></div></div></div>').join('');
+  }
+  // Top 10 most leftover dishes
+  const leftStats={};
+  data.forEach(bq=>{
+    if(!bq.dishLeftovers)return;
+    for(const[dish,val]of Object.entries(bq.dishLeftovers)){
+      if(!leftStats[dish])leftStats[dish]={total:0,count:0};
+      leftStats[dish].total+=val;leftStats[dish].count++;
+    }
+  });
+  const leftSorted=Object.entries(leftStats).map(([d,s])=>([d,Math.round(s.total/s.count)])).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const leftBox=document.getElementById('top-leftover');
+  if(!leftSorted.length){leftBox.innerHTML='<div style="text-align:center;color:var(--textl);padding:16px">暂无数据（需要评价后才有）</div>';
+  }else{
+    leftBox.innerHTML=leftSorted.map((p,i)=>'<div class="bar-row"><div class="bar-label" style="width:auto;max-width:120px;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+p[0]+'">'+(i+1)+'. '+p[0]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(p[1],5)+'%;background:linear-gradient(90deg,#FF9800,var(--red))"><span>'+p[1]+'%</span></div></div></div>').join('');
+  }
 }
 
 // ===== INIT =====
