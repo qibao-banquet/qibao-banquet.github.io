@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宴会管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--red:#8B0000;--gold:#C5A55A;--bg:#FDF8F0;--card:#FFFFFF;--text:#333;--textl:#666;--border:#E8E0D0;--shadow:0 2px 12px rgba(0,0,0,.08)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,var(--red),#6B0000);color:#fff;padding:16px 20px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header h1{font-size:22px;letter-spacing:2px}.header h1::before,.header h1::after{content:"✦";color:var(--gold);margin:0 8px;font-size:14px}
+.header p{font-size:12px;color:var(--gold);letter-spacing:1px}
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:58px;z-index:99;overflow-x:auto}
+.tab-btn{flex:1;min-width:80px;padding:12px 8px;border:none;background:none;font-size:14px;color:var(--textl);cursor:pointer;position:relative;transition:.2s;white-space:nowrap}
+.tab-btn.active{color:var(--red);font-weight:600}
+.tab-btn.active::after{content:"";position:absolute;bottom:0;left:20%;right:20%;height:3px;background:var(--red);border-radius:3px 3px 0 0}
+.container{max-width:960px;margin:0 auto;padding:16px}
+.tab-content{display:none}.tab-content.active{display:block}
+.card{background:var(--card);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.card h3{color:var(--red);font-size:16px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;transition:.2s}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--gold);outline:none;box-shadow:0 0 0 3px rgba(197,165,90,.15)}
+.form-group textarea{resize:vertical;min-height:60px}
+.chk-group{display:flex;flex-wrap:wrap;gap:8px}
+.chk-group label{display:flex;align-items:center;gap:4px;padding:6px 12px;border:1px solid var(--border);border-radius:20px;font-size:13px;cursor:pointer;transition:.2s;font-weight:400}
+.chk-group label:has(input:checked){background:var(--red);color:#fff;border-color:var(--red)}
+.chk-group input{display:none}
+.btn{padding:10px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--red);color:#fff}.btn-primary:hover{background:#6B0000}
+.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{background:#A88B3A}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}.btn-outline:hover{border-color:var(--gold)}
+.btn-sm{padding:6px 14px;font-size:12px}
+.btn-block{width:100%;justify-content:center}
+.search-box{position:relative;margin-bottom:16px}
+.search-box input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border);border-radius:8px;font-size:14px}
+.search-box input:focus{border-color:var(--gold);outline:none;box-shadow:0 0 0 3px rgba(197,165,90,.15)}
+.search-box::before{content:"🔍";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px}
+.menu-cat{margin-bottom:12px}
+.menu-cat-title{font-size:15px;color:var(--red);font-weight:700;padding:10px 0;border-bottom:2px solid var(--gold);margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.menu-cat-title::after{content:"▾";font-size:12px;color:var(--textl);transition:.2s}
+.menu-cat.collapsed .menu-cat-title::after{transform:rotate(-90deg)}
+.menu-cat.collapsed .menu-subs{display:none}
+.menu-sub-title{font-size:12px;color:var(--gold);padding:4px 0;margin:6px 0 4px;font-weight:600}
+.menu-items{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.menu-item{padding:5px 12px;border:1px solid var(--border);border-radius:20px;font-size:13px;cursor:pointer;transition:.2s;background:#fff;user-select:none}
+.menu-item:hover{border-color:var(--gold);background:#FFFDF5}
+.menu-item.selected{background:var(--red);color:#fff;border-color:var(--red)}
+.sel-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px}
+.sel-item:last-child{border-bottom:none}
+.sel-item .cat{font-size:11px;color:var(--textl)}
+.sel-item .rm{color:var(--red);cursor:pointer;font-weight:bold;padding:2px 8px;border-radius:4px}
+.sel-item .rm:hover{background:rgba(139,0,0,.1)}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-pending{background:#FFF3E0;color:#E65100}
+.badge-ordered{background:#E3F2FD;color:#1565C0}
+.badge-active{background:#E8F5E9;color:#2E7D32}
+.badge-done{background:#F3E5F5;color:#6A1B9A}
+.badge-rated{background:#FCE4EC;color:var(--red)}
+.rec-item{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
+.rec-hdr{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer}
+.rec-hdr:hover{background:rgba(139,0,0,.02)}
+.rec-info .date{font-weight:600;font-size:14px;color:var(--red)}
+.rec-info .meta{font-size:12px;color:var(--textl);margin-top:2px}
+.rec-detail{display:none;padding:12px 16px;background:rgba(253,248,240,.5);border-top:1px solid var(--border)}
+.rec-detail.open{display:block}
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{background:#fff;border-radius:10px;padding:16px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border)}
+.stat-card .value{font-size:28px;font-weight:700;color:var(--red)}
+.stat-card .label{font-size:12px;color:var(--textl);margin-top:4px}
+.bar-row{display:flex;align-items:center;margin-bottom:10px;gap:10px}
+.bar-label{width:50px;font-size:13px;text-align:right;flex-shrink:0;font-weight:600}
+.bar-track{flex:1;height:28px;background:#F0EBE0;border-radius:14px;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--red));border-radius:14px;transition:width .6s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px}
+.bar-fill span{font-size:11px;color:#fff;font-weight:600;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--red);color:#fff;padding:8px 10px;text-align:left;font-weight:500}
+td{padding:8px 10px;border-bottom:1px solid var(--border)}
+tr:hover td{background:rgba(139,0,0,.02)}
+.slider-group{display:flex;align-items:center;gap:12px}
+.slider-group input[type=range]{flex:1;-webkit-appearance:none;height:8px;border-radius:4px;background:linear-gradient(90deg,#4CAF50,#FFC107,var(--red));outline:none}
+.slider-group input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--red);cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.slider-value{font-size:22px;font-weight:700;color:var(--red);min-width:55px;text-align:center}
+.radio-cards{display:flex;gap:10px;flex-wrap:wrap}
+.radio-card{flex:1;min-width:80px;padding:14px;border:2px solid var(--border);border-radius:10px;text-align:center;cursor:pointer;transition:.2s}
+.radio-card:hover{border-color:var(--gold)}
+.radio-card.selected{border-color:var(--red);background:rgba(139,0,0,.05)}
+.radio-card .emoji{font-size:28px;margin-bottom:4px}
+.radio-card .name{font-size:14px;font-weight:600}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:10px 24px;border-radius:20px;font-size:14px;z-index:999;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+.action-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.log-entry{font-size:12px;color:var(--textl);padding:4px 0;border-bottom:1px dashed var(--border)}
+.log-entry .time{color:var(--gold);font-weight:600}
+.empty-state{text-align:center;padding:40px 20px;color:var(--textl)}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.month-picker{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.month-picker input{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px}
+.floating-count{position:fixed;bottom:20px;right:20px;background:var(--red);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;box-shadow:0 4px 12px rgba(139,0,0,.3);z-index:90;display:none}
+.confirm-box{background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:12px;margin-top:12px}
+.dish-tag{display:inline-block;padding:3px 8px;margin:2px;border-radius:4px;font-size:12px;background:#FDF0E0;color:var(--text)}
+@media(max-width:600px){
+.container{padding:10px}.card{padding:14px}
+.stat-cards{grid-template-columns:repeat(2,1fr)}
+.tab-btn{font-size:12px;padding:10px 4px}
+.radio-cards{flex-direction:column}
+table{font-size:11px}th,td{padding:6px}
+}
+@media print{.header,.tabs,.btn,.search-box,.action-bar,.floating-count,.toast{display:none!important}.tab-content{display:block!important}.card{box-shadow:none;border:1px solid #ccc}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>宴会管理系统</h1>
+<p>BANQUET MANAGEMENT SYSTEM</p>
+</div>
+<div class="tabs">
+<button class="tab-btn active" data-tab="create">📋 新建宴会</button>
+<button class="tab-btn" data-tab="order">🍽️ 点菜</button>
+<button class="tab-btn" data-tab="records">📑 宴会记录</button>
+<button class="tab-btn" data-tab="report">📊 考核报表</button>
+</div>
+<div class="container">
+<!-- Tab 1 -->
+<div id="tab-create" class="tab-content active">
+<div class="card">
+<h3>🎊 创建新宴会</h3>
+<div class="form-group"><label>宴会时间</label><input type="datetime-local" id="f-time"></div>
+<div class="form-group"><label>宴会地点</label><input type="text" id="f-location" placeholder="请输入宴会地点"></div>
+<div class="form-group"><label>预计人数</label><input type="number" id="f-count" min="1" max="999" placeholder="预计到场人数"></div>
+<div class="form-group"><label>口味偏好（可多选）</label>
+<div class="chk-group" id="f-taste">
+<label><input type="checkbox" value="清淡">清淡</label>
+<label><input type="checkbox" value="麻辣">麻辣</label>
+<label><input type="checkbox" value="海鲜">海鲜</label>
+<label><input type="checkbox" value="粤式">粤式</label>
+<label><input type="checkbox" value="东北">东北</label>
+<label><input type="checkbox" value="不限">不限</label>
+</div></div>
+<div class="form-group"><label>备注说明</label><textarea id="f-notes" placeholder="如有特殊要求请在此说明…"></textarea></div>
+<button class="btn btn-primary btn-block" onclick="createBanquet()">创建宴会并开始点菜 →</button>
+</div>
+</div>
+<!-- Tab 2 -->
+<div id="tab-order" class="tab-content">
+<div id="order-empty" class="card">
+<div class="empty-state"><div class="icon">🍽️</div><p>请先选择或创建一个宴会</p>
+<button class="btn btn-primary" style="margin-top:12px" onclick="switchTab('create')">去创建宴会</button></div>
+</div>
+<div id="order-panel" style="display:none">
+<div class="card" style="padding:12px 16px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+<div><strong id="o-info" style="color:var(--red)"></strong><span id="o-meta" style="font-size:12px;color:var(--textl);display:block"></span></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<button class="btn btn-outline btn-sm" onclick="copyMenu()">📋 复制菜单</button>
+<button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ 打印</button>
+<button class="btn btn-gold btn-sm" onclick="confirmOrder()">✅ 确认菜单</button>
+</div>
+</div>
+</div>
+<div class="search-box"><input type="text" id="dish-search" placeholder="搜索菜品…" oninput="filterDishes()"></div>
+<div id="menu-box"></div>
+<div class="card"><h3>🧾 已选菜品 <span id="sel-count" style="font-size:13px;color:var(--gold)"></span></h3><div id="sel-list"></div></div>
+</div>
+</div>
+<!-- Tab 3 -->
+<div id="tab-records" class="tab-content"><div id="rec-list"></div></div>
+<!-- Tab 4 -->
+<div id="tab-report" class="tab-content">
+<div class="month-picker"><label style="font-weight:600">📅 选择月份：</label><input type="month" id="rpt-month" onchange="renderReport()"></div>
+<div id="rpt-stats"></div>
+<div class="card"><h3>📋 宴会明细</h3><div style="overflow-x:auto"><table><thead><tr><th>日期</th><th>地点</th><th>人数</th><th>菜品数</th><th>服务员</th><th>剩余量</th></tr></thead><tbody id="rpt-tbody"></tbody></table></div></div>
+<div class="card"><h3>👩‍🍳 服务员考核排名</h3><div id="waiter-rank"></div></div>
+</div>
+</div>
+<div class="floating-count" id="fc"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== MENU DATA =====
+const MENU={
+"凉菜":{"海鲜凉菜":["咸水海白虾","乳黄瓜老醋蛰头","捞汁海花螺","捞汁香芹海参","酥骨舟山带鱼","贝尖儿黄瓜花","贝尖拌丝瓜尖","老醋蛰头鲜花生","盐水青柠海白虾"],"粤式/特色凉菜":["变蛋黑鱼籽酱","自制花雕熟醉蟹","老上海五香熏鱼","老卤去骨猪蹄","老汤自制酱肘花","老汤酱香皮冻"],"川味/香辣凉菜":["擂椒拌皮蛋","柠檬剁椒凤爪","青芥美极木耳"],"东北/家常凉菜":["东北蘸酱菜","五香酱牛腱子","凉拌猪耳朵","哈尔滨风干肠","丝瓜尖拌桃仁","坚果蓝莓山药泥","桂花蓝莓山药"],"山东风味拌菜":["捞汁爽口萝卜","捞汁自产蔬菜","捞汁花菜杆","核桃仁拌荠菜","桂花糖蓝莓山药","桂花马蹄圣女果","清口自产苤蓝丝","爽口捞汁菜根香","爽口桂花马蹄","爽口自产腌菜","爽口自产菜根","爽脆捞汁海笋","皮蛋花生拌青瓜","素什锦","老醋皮蛋花生","花生青瓜皮蛋","苤蓝腌香菜根","萝卜黄瓜蘸酱菜","青瓜拌牛肉","青瓜老醋蜇头","青瓜花生拌牛肉","青瓜花生皮蛋","香椿拌北豆腐","香椿苗拌核桃仁"]},
+"热菜":{"海鲜（高端宴请）":["五粒干烧大乌参","章丘大葱烧辽参","响螺片炒鲜芦笋","牛肝菌炒鲜芦笋","姜葱上汤焗海蟹","姜葱焗炒梭子蟹","清蒸兴化大闸蟹","清蒸泰州大闸蟹","苏叶清蒸大闸蟹","清蒸去骨东星斑","油焖泰国黑虎虾","油焖茄汁软皮虾","油焖黑虎大对虾","宫爆黑虎大虾球","果仁宫爆大虾球","基围虾鲜牛百叶","基围虾鳜鱼片","白灼青笋鲜鲍片","砂锅百合焗鲍鱼","砂锅鲍菇焗海虾","蒜籽烧野生黄鱼","红烧东海大刀鱼","蒜蓉粉丝蒸澳带","蒜蓉粉丝日月贝","蒜蓉粉丝蒸扇贝","豉汁粉丝蒸日月贝","黄蛤煮大豆腐","海鲜菇白菜心象牙白萝卜","象牙白烧大乌参"],"粤菜（高端清鲜）":["咸肉鲜笋腌笃鲜","黄鸡鲜笋腌笃鲜","双蛋上汤沁苋菜","上汤灼鲜豌豆尖","百花蒸酿秋葵","砂锅蒜蓉焗海鲜","金牌广式炸乳鸽","黑椒五彩和牛粒","热捞澳洲雪花牛肋","金汤针菇雪花牛"],"川菜/香辣":["四川鲜煮猪蹄","川汁温煮三黄鸡","川汁白斩三黄鸡","豆豉麻椒小炒肉","麻椒小炒梅花肉","螺丝椒炒梅花肉","螺丝椒炒走地鸡","香辣带骨小羔羊","香辣莲藕炖羊肉","香辣萝卜炖羊排","香辣萝卜炖羔羊"],"东北菜（主场特色）":["东北排骨一锅出","东北溜肉段","东北粉丝烩酸菜","内蒙巴盟烩酸菜","毡房卤肉烩酸菜","卤肉土豆烩酸菜","砂锅血肠炖酸菜","排骨炖油豆角","红烧肉焖油豆角","红烧肉烧白不老","黑猪肉炖白不老","丸子粉条炖白菜","丸子豆腐炖白菜","白菜粉条狮子头","锅包肉","自制电烤羊肉串","孜然烤法式羊排","内蒙羊排炖萝卜","土猪肉烧油豆角","铁锅茄子炖土豆","自产白菜炖豆腐","冻豆腐魔芋结","炒蚕蛹"],"家常菜/清炒":["小葱摊自产鸡蛋","山药木耳炒荷兰豆","木耳马蹄炒西芹","核桃仁清炒西芹","梅花肉炒自产青椒","百合清炒西芹","贵族南瓜炒百合","自产芹菜炒百合","茼蒿小油菜","茼蒿莲藕青笋木耳","白萝卜莴笋莲藕冬瓜","小腊肠炒芥蓝面","小腊肠炒黄瓜钱","广东腊味炒蜜豆","腊肠桃仁芥兰肚","腊肠生炒芥兰苗","小狮子头炖白菜豆腐","狮子头煮卞萝卜丝","白菜芋结红烧肉","椒丝豉油淋秋葵","豉油汁白灼芥兰","砂锅生炒芥兰","砂锅酱烧小青瓜","雪花牛肉卷羔羊上脑卷","鱼羊鲜煮卞萝卜","鲜马蹄清炒西芹","马蹄木耳炒芥兰","马蹄木耳炒西芹","马蹄木耳鲜芦笋","酸菜丝东北木耳","大白菜鲜香菇绣球菌","粉条丸子熬白菜","白菜芋结红烧肉"],"火锅":["和牛火锅"]},
+"汤品":{"粤式滋补汤":["国宴菊花豆腐汤","石斛甘蔗马蹄玉米汤","石斛红枣炖乳鸽","石斛花松茸炖花胶","鲜松茸炖鸡清汤","红枣枸杞乌鸡汤"],"海鲜/清汤":["敖汉小米煨大连海参","海鲜乌鱼蛋汤"]},
+"主食":{"北方主食":["卤肉萝卜粉条蒸饺","家常烙肉饼","家常猪肉大葱饼","家常猪肉馅饼","猪肉白菜水饺","酱肉萝卜粉条包子","小笼包两款（荤素）","敖汉新小米香粥","煮敖汉糯玉米","火锅面"],"西北风味":["荠菜鸡蛋炝锅面","西北臊子干拌面"]},
+"水果":{"水果拼盘":["圣女果甜山楂黄骅冬枣","开心果蓝莓青提","樱桃金桔草莓","樱桃金桔青提","水果拼盘","砂糖橘草莓樱桃李子","葡萄","葵花籽开心果","青提圣女果"]}
+};
+const WAITERS=[{name:"宁宁",emoji:"👩"},{name:"爽爽",emoji:"👩‍🦰"},{name:"欣欣",emoji:"👧"}];
+const STATUS={pending:{t:"待点菜",c:"badge-pending"},ordered:{t:"已点菜",c:"badge-ordered"},confirmed:{t:"进行中",c:"badge-active"},done:{t:"已结束",c:"badge-done"},rated:{t:"已评价",c:"badge-rated"}};
+const CAT_EMOJI={"凉菜":"🥗","热菜":"🔥","汤品":"🍲","主食":"🍚","水果":"🍊"};
+
+// ===== STORAGE =====
+function load(){try{return JSON.parse(localStorage.getItem('bq_data'))||[];}catch(e){return[];}}
+function save(d){localStorage.setItem('bq_data',JSON.stringify(d));}
+
+let curId=null; // current banquet id being edited
+
+// ===== TOAST =====
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+
+// ===== TAB SWITCHING =====
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-'+name));
+  if(name==='order') renderOrder();
+  if
