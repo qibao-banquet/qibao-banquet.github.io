@@ -205,4 +205,245 @@ function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-'+name));
   if(name==='order') renderOrder();
-  if
+  if(name==='records') renderRecords();
+  if(name==='report') renderReport();
+}
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+
+// ===== CREATE BANQUET =====
+function createBanquet(){
+  const time=document.getElementById('f-time').value;
+  const location=document.getElementById('f-location').value.trim();
+  const count=parseInt(document.getElementById('f-count').value)||0;
+  const tastes=[...document.querySelectorAll('#f-taste input:checked')].map(i=>i.value);
+  const notes=document.getElementById('f-notes').value.trim();
+  if(!time){toast('请选择宴会时间');return;}
+  if(!location){toast('请输入宴会地点');return;}
+  if(!count){toast('请输入预计人数');return;}
+  const data=load();
+  const bq={id:Date.now().toString(),time,location,count,tastes,notes,dishes:[],status:'pending',actualCount:0,waiter:'',leftover:-1,logs:[{t:new Date().toLocaleString('zh-CN'),msg:'创建宴会'}],created:new Date().toISOString()};
+  data.push(bq);save(data);
+  curId=bq.id;
+  document.getElementById('f-time').value='';
+  document.getElementById('f-location').value='';
+  document.getElementById('f-count').value='';
+  document.querySelectorAll('#f-taste input').forEach(i=>i.checked=false);
+  document.getElementById('f-notes').value='';
+  toast('宴会创建成功！');
+  switchTab('order');
+}
+
+// ===== RENDER ORDER / MENU =====
+function renderOrder(){
+  const data=load();
+  const bq=curId?data.find(b=>b.id===curId):data.filter(b=>b.status==='pending'||b.status==='ordered')[0];
+  if(!bq){document.getElementById('order-empty').style.display='';document.getElementById('order-panel').style.display='none';return;}
+  curId=bq.id;
+  document.getElementById('order-empty').style.display='none';
+  document.getElementById('order-panel').style.display='';
+  const d=new Date(bq.time);
+  document.getElementById('o-info').textContent=d.toLocaleDateString('zh-CN',{month:'long',day:'numeric'})+'  '+bq.location;
+  document.getElementById('o-meta').textContent='预计'+bq.count+'人 | '+bq.tastes.join('、');
+  renderMenu(bq);
+  renderSelected(bq);
+  updateFC(bq);
+}
+function renderMenu(bq){
+  const box=document.getElementById('menu-box');
+  let html='';
+  for(const[cat,subs]of Object.entries(MENU)){
+    html+='<div class="menu-cat"><div class="menu-cat-title" onclick="this.parentElement.classList.toggle(\'collapsed\')">'+(CAT_EMOJI[cat]||'')+" "+cat+'</div><div class="menu-subs">';
+    for(const[sub,items]of Object.entries(subs)){
+      html+='<div class="menu-sub-title">'+sub+'</div><div class="menu-items">';
+      items.forEach(item=>{
+        const sel=bq.dishes.includes(item)?'selected':'';
+        html+='<div class="menu-item '+sel+'" data-dish="'+item+'" onclick="toggleDish(this,\''+item.replace(/'/g,"\\'")+'\')">'+item+'</div>';
+      });
+      html+='</div>';
+    }
+    html+='</div></div>';
+  }
+  box.innerHTML=html;
+  filterDishes();
+}
+function toggleDish(el,name){
+  const data=load();const bq=data.find(b=>b.id===curId);if(!bq)return;
+  const idx=bq.dishes.indexOf(name);
+  if(idx>=0){bq.dishes.splice(idx,1);el.classList.remove('selected');}
+  else{bq.dishes.push(name);el.classList.add('selected');}
+  if(bq.status==='pending') bq.status='ordered';
+  save(data);renderSelected(bq);updateFC(bq);
+}
+function renderSelected(bq){
+  const list=document.getElementById('sel-list');
+  const cnt=document.getElementById('sel-count');
+  cnt.textContent='('+bq.dishes.length+'道)';
+  if(!bq.dishes.length){list.innerHTML='<div class="empty-state" style="padding:20px"><p>还没选菜，从上方菜单中点击选择</p></div>';return;}
+  let html='';
+  bq.dishes.forEach(d=>{
+    let cat='';
+    for(const[c,subs]of Object.entries(MENU))for(const[s,items]of Object.entries(subs))if(items.includes(d))cat=c+' · '+s;
+    html+='<div class="sel-item"><div><span>'+d+'</span> <span class="cat">'+cat+'</span></div><span class="rm" onclick="removeDish(\''+d.replace(/'/g,"\\'")+'\')">✕</span></div>';
+  });
+  list.innerHTML=html;
+}
+function removeDish(name){
+  const data=load();const bq=data.find(b=>b.id===curId);if(!bq)return;
+  bq.dishes=bq.dishes.filter(d=>d!==name);save(data);renderOrder();
+}
+function updateFC(bq){
+  const fc=document.getElementById('fc');
+  if(bq.dishes.length>0){fc.style.display='block';fc.textContent='已选 '+bq.dishes.length+' 道菜';}
+  else{fc.style.display='none';}
+}
+function filterDishes(){
+  const q=document.getElementById('dish-search').value.toLowerCase();
+  document.querySelectorAll('.menu-item').forEach(el=>{
+    el.style.display=el.dataset.dish.toLowerCase().includes(q)?'':'none';
+  });
+}
+
+// ===== CONFIRM ORDER =====
+function confirmOrder(){
+  const data=load();const bq=data.find(b=>b.id===curId);if(!bq)return;
+  if(!bq.dishes.length){toast('还没选菜呢');return;}
+  bq.status='confirmed';
+  bq.logs.push({t:new Date().toLocaleString('zh-CN'),msg:'菜单已确认，共'+bq.dishes.length+'道菜'});
+  save(data);toast('菜单已确认！共'+bq.dishes.length+'道菜');
+}
+function copyMenu(){
+  const data=load();const bq=data.find(b=>b.id===curId);if(!bq)return;
+  const d=new Date(bq.time);
+  let txt='🍽️ 宴会菜单\n';
+  txt+='时间：'+d.toLocaleDateString('zh-CN')+(d.getHours()?(' '+d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})):'')+'\n';
+  txt+='地点：'+bq.location+'\n';
+  txt+='人数：'+bq.count+'人\n';
+  if(bq.tastes.length)txt+='口味：'+bq.tastes.join('、')+'\n';
+  txt+='━━━━━━━━━━━━━━━\n';
+  for(const[cat,subs]of Object.entries(MENU)){
+    const catDishes=bq.dishes.filter(d=>{for(const items of Object.values(subs))if(items.includes(d))return true;return false;});
+    if(catDishes.length){txt+='\n'+(CAT_EMOJI[cat]||'')+' '+cat+'（'+catDishes.length+'道）\n';catDishes.forEach((d,i)=>{txt+='  '+(i+1)+'. '+d+'\n';});}
+  }
+  txt+='\n共 '+bq.dishes.length+' 道菜';
+  if(bq.notes)txt+='\n备注：'+bq.notes;
+  navigator.clipboard.writeText(txt).then(()=>toast('菜单已复制！')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('菜单已复制！');
+  });
+}
+
+// ===== RECORDS =====
+function renderRecords(){
+  const data=load().sort((a,b)=>new Date(b.time)-new Date(a.time));
+  const box=document.getElementById('rec-list');
+  if(!data.length){box.innerHTML='<div class="card"><div class="empty-state"><div class="icon">📑</div><p>暂无宴会记录</p></div></div>';return;}
+  let html='';
+  data.forEach(bq=>{
+    const d=new Date(bq.time);
+    const st=STATUS[bq.status]||STATUS.pending;
+    html+='<div class="rec-item"><div class="rec-hdr" onclick="toggleDetail(\''+bq.id+'\')"><div class="rec-info"><div class="date">'+d.toLocaleDateString('zh-CN')+'  '+bq.location+'</div><div class="meta">预计'+bq.count+'人'+(bq.actualCount?' / 实际'+bq.actualCount+'人':'')+' | '+bq.dishes.length+'道菜'+(bq.waiter?' | 服务员：'+bq.waiter:'')+'</div></div><span class="badge '+st.c+'">'+st.t+'</span></div>';
+    html+='<div class="rec-detail" id="det-'+bq.id+'">';
+    // dishes
+    if(bq.dishes.length){html+='<div style="margin-bottom:10px"><strong>菜品：</strong><br>';bq.dishes.forEach(d=>{html+='<span class="dish-tag">'+d+'</span>';});html+='</div>';}
+    if(bq.tastes&&bq.tastes.length)html+='<div style="margin-bottom:8px;font-size:13px"><strong>口味：</strong>'+bq.tastes.join('、')+'</div>';
+    if(bq.notes)html+='<div style="margin-bottom:8px;font-size:13px"><strong>备注：</strong>'+bq.notes+'</div>';
+    if(bq.leftover>=0)html+='<div style="margin-bottom:8px;font-size:13px"><strong>剩余量：</strong><span style="color:var(--red);font-weight:700">'+bq.leftover+'%</span></div>';
+    // logs
+    if(bq.logs&&bq.logs.length){html+='<div style="margin-top:8px"><strong style="font-size:12px">操作日志：</strong>';bq.logs.forEach(l=>{html+='<div class="log-entry"><span class="time">'+l.t+'</span> '+l.msg+'</div>';});html+='</div>';}
+    // action buttons
+    html+='<div class="action-bar">';
+    if(bq.status==='pending'||bq.status==='ordered'){
+      html+='<button class="btn btn-gold btn-sm" onclick="curId=\''+bq.id+'\';switchTab(\'order\')">🍽️ 去点菜</button>';
+    }
+    if(bq.status==='confirmed'){
+      html+='<button class="btn btn-primary btn-sm" onclick="finishBanquet(\''+bq.id+'\')">✅ 用餐结束</button>';
+    }
+    if(bq.status==='done'){
+      html+='<button class="btn btn-gold btn-sm" onclick="rateBanquet(\''+bq.id+'\')">⭐ 评价</button>';
+    }
+    html+='<button class="btn btn-outline btn-sm" onclick="deleteBanquet(\''+bq.id+'\')">🗑️ 删除</button>';
+    html+='</div></div></div>';
+  });
+  box.innerHTML=html;
+}
+function toggleDetail(id){const el=document.getElementById('det-'+id);if(el)el.classList.toggle('open');}
+
+// ===== FINISH BANQUET =====
+function finishBanquet(id){
+  const cnt=prompt('请输入实际到场人数：');
+  if(cnt===null)return;
+  const n=parseInt(cnt);if(!n||n<1){toast('请输入有效人数');return;}
+  const data=load();const bq=data.find(b=>b.id===id);if(!bq)return;
+  bq.actualCount=n;bq.status='done';
+  bq.logs.push({t:new Date().toLocaleString('zh-CN'),msg:'用餐结束，实际'+n+'人'});
+  save(data);toast('已记录，请评价');renderRecords();
+}
+
+// ===== RATE BANQUET =====
+function rateBanquet(id){
+  const data=load();const bq=data.find(b=>b.id===id);if(!bq)return;
+  // create modal
+  const mask=document.createElement('div');
+  mask.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:16px;padding:24px;max-width:400px;width:100%';
+  box.innerHTML='<h3 style="color:var(--red);margin-bottom:16px;text-align:center">⭐ 宴会评价</h3>'+
+    '<p style="font-size:13px;color:var(--textl);margin-bottom:12px;text-align:center">选择服务员并填写剩余量</p>'+
+    '<div class="radio-cards" id="rate-waiters">'+WAITERS.map(w=>'<div class="radio-card" data-w="'+w.name+'" onclick="document.querySelectorAll(\'#rate-waiters .radio-card\').forEach(c=>c.classList.remove(\'selected\'));this.classList.add(\'selected\')"><div class="emoji">'+w.emoji+'</div><div class="name">'+w.name+'</div></div>').join('')+'</div>'+
+    '<div style="margin-top:16px"><label style="font-size:13px;font-weight:600">剩余量</label><div class="slider-group"><input type="range" id="rate-slider" min="0" max="100" value="20" oninput="document.getElementById(\'rate-val\').textContent=this.value+\'%\'"><div class="slider-value" id="rate-val">20%</div></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--textl);margin-top:2px"><span>0% 无剩余</span><span>100% 全剩</span></div></div>'+
+    '<div style="display:flex;gap:10px;margin-top:20px"><button class="btn btn-outline" style="flex:1" onclick="this.closest(\'div[style*=fixed]\').remove()">取消</button><button class="btn btn-primary" style="flex:1" id="rate-submit">提交评价</button></div>';
+  mask.appendChild(box);document.body.appendChild(mask);
+  mask.addEventListener('click',e=>{if(e.target===mask)mask.remove();});
+  document.getElementById('rate-submit').addEventListener('click',()=>{
+    const sel=box.querySelector('.radio-card.selected');
+    if(!sel){toast('请选择服务员');return;}
+    const waiter=sel.dataset.w;
+    const leftover=parseInt(document.getElementById('rate-slider').value);
+    bq.waiter=waiter;bq.leftover=leftover;bq.status='rated';
+    bq.logs.push({t:new Date().toLocaleString('zh-CN'),msg:'评价完成：服务员'+waiter+'，剩余量'+leftover+'%'});
+    save(data);mask.remove();toast('评价提交成功！');renderRecords();
+  });
+}
+
+// ===== DELETE BANQUET =====
+function deleteBanquet(id){
+  if(!confirm('确定删除这条宴会记录？'))return;
+  let data=load();data=data.filter(b=>b.id!==id);save(data);
+  if(curId===id)curId=null;
+  toast('已删除');renderRecords();
+}
+
+// ===== REPORT =====
+function renderReport(){
+  const monthInput=document.getElementById('rpt-month');
+  if(!monthInput.value){const now=new Date();monthInput.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');}
+  const[y,m]=monthInput.value.split('-').map(Number);
+  const data=load().filter(b=>{
+    if(b.status!=='rated')return false;
+    const d=new Date(b.time);return d.getFullYear()===y&&d.getMonth()+1===m;
+  }).sort((a,b)=>new Date(a.time)-new Date(b.time));
+  // stats
+  const total=data.length;
+  const avgLeft=total?Math.round(data.reduce((s,b)=>s+b.leftover,0)/total):0;
+  const waiterStats={};
+  data.forEach(b=>{if(!waiterStats[b.waiter])waiterStats[b.waiter]={count:0,total:0};waiterStats[b.waiter].count++;waiterStats[b.waiter].total+=b.leftover;});
+  let bestWaiter='-';let bestAvg=999;
+  for(const[w,s]of Object.entries(waiterStats)){const avg=s.total/s.count;if(avg<bestAvg){bestAvg=avg;bestWaiter=w;}}
+  document.getElementById('rpt-stats').innerHTML='<div class="stat-cards"><div class="stat-card"><div class="value">'+total+'</div><div class="label">本月宴会次数</div></div><div class="stat-card"><div class="value">'+avgLeft+'%</div><div class="label">平均剩余量</div></div><div class="stat-card"><div class="value">'+bestWaiter+'</div><div class="label">最佳服务员</div></div></div>';
+  // table
+  const tbody=document.getElementById('rpt-tbody');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--textl);padding:20px">本月暂无已评价的宴会数据</td></tr>';
+  }else{
+    tbody.innerHTML=data.map(bq=>{const d=new Date(bq.time);return '<tr><td>'+d.toLocaleDateString('zh-CN')+'</td><td>'+bq.location+'</td><td>'+bq.actualCount+'</td><td>'+bq.dishes.length+'</td><td>'+bq.waiter+'</td><td style="color:var(--red);font-weight:700">'+bq.leftover+'%</td></tr>';}).join('');
+  }
+  // waiter rank
+  const rankBox=document.getElementById('waiter-rank');
+  if(!Object.keys(waiterStats).length){rankBox.innerHTML='<div style="text-align:center;color:var(--textl);padding:16px">暂无数据</div>';return;}
+  const sorted=Object.entries(waiterStats).map(([w,s])=>({name:w,avg:Math.round(s.total/s.count),count:s.count})).sort((a,b)=>a.avg-b.avg);
+  rankBox.innerHTML=sorted.map(w=>'<div class="bar-row"><div class="bar-label">'+w.name+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(w.avg,5)+'%"><span>'+w.avg+'%</span></div></div><div style="font-size:11px;color:var(--textl);width:40px">'+w.count+'次</div></div>').join('');
+}
+
+// ===== INIT =====
+renderReport();
+</script>
+</body>
+</html>
