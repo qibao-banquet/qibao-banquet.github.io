@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>老齐时间管家</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--red:#8B0000;--red-light:#A52A2A;--gold:#C5A55A;--bg:#FDF8F0;--bg-card:#FFF;--text:#333;--text-light:#666;--border:#E8E0D0;--shadow:0 2px 8px rgba(0,0,0,.08);--shadow-lg:0 4px 16px rgba(0,0,0,.12);--radius:12px;--radius-sm:8px;--c-meeting:#1976D2;--c-visit:#E65100;--c-trip:#7B1FA2;--c-personal:#388E3C;--c-other:#757575}
+body{font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px}
+.app-header{background:linear-gradient(135deg,var(--red),var(--red-light));color:#fff;padding:16px 20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(139,0,0,.3)}
+.app-header h1{font-size:20px;font-weight:600;text-align:center;letter-spacing:2px}
+.app-header h1 span{color:var(--gold)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid var(--border);z-index:100;box-shadow:0 -2px 8px rgba(0,0,0,.06)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;color:var(--text-light);font-size:11px;border:none;background:none}
+.nav-item.active{color:var(--red);font-weight:600}
+.nav-item svg{width:22px;height:22px;margin-bottom:2px}
+.page{display:none;padding:16px;max-width:800px;margin:0 auto}.page.active{display:block}
+.day-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.day-nav button,.cal-header button{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;cursor:pointer;font-size:14px;color:var(--text);font-family:inherit}
+.day-nav button:hover,.cal-header button:hover{border-color:var(--gold);color:var(--red)}
+.date-display,.month-display{font-size:18px;font-weight:600;color:var(--red);min-width:160px;text-align:center}
+.date-display .weekday{font-size:13px;color:var(--text-light);font-weight:400}
+.btn-today{background:var(--gold)!important;color:#fff!important;border-color:var(--gold)!important}
+.event-card{background:var(--bg-card);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid var(--gold);display:flex;align-items:flex-start;gap:12px;transition:transform .15s}
+.event-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.event-card.type-meeting{border-left-color:var(--c-meeting)}.event-card.type-visit{border-left-color:var(--c-visit)}.event-card.type-trip{border-left-color:var(--c-trip)}.event-card.type-personal{border-left-color:var(--c-personal)}.event-card.type-other{border-left-color:var(--c-other)}
+.event-time{font-size:13px;color:var(--text-light);white-space:nowrap;min-width:50px;padding-top:2px}
+.event-info{flex:1;min-width:0}
+.event-title{font-size:15px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-meta{font-size:12px;color:var(--text-light);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.event-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;color:#fff;font-weight:500}
+.tag-meeting{background:var(--c-meeting)}.tag-visit{background:var(--c-visit)}.tag-trip{background:var(--c-trip)}.tag-personal{background:var(--c-personal)}.tag-other{background:var(--c-other)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-light)}.empty-state p{font-size:15px}
+.cal-header{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px}
+.calendar-grid{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);background:var(--red);color:#fff}
+.cal-weekdays div{text-align:center;padding:10px 4px;font-size:13px;font-weight:500}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-day{min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--border);position:relative;font-size:14px;padding:4px}
+.cal-day:hover{background:#FFF5E6}.cal-day.other-month{color:#ccc}.cal-day.today{background:#FFF0D0;font-weight:700;color:var(--red)}.cal-day.selected{background:var(--gold);color:#fff}
+.cal-day .dot{position:absolute;bottom:4px;width:5px;height:5px;border-radius:50%;background:var(--red)}
+.cal-day-events{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);margin-top:16px;padding:16px}
+.cal-day-events h3{font-size:15px;color:var(--red);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.search-bar{margin-bottom:16px}.search-bar input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:var(--bg-card);outline:none;font-family:inherit}.search-bar input:focus{border-color:var(--gold)}
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.stat-card{background:var(--bg-card);border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow)}
+.stat-card .num{font-size:28px;font-weight:700;color:var(--red)}.stat-card .label{font-size:12px;color:var(--text-light);margin-top:4px}
+.chart-section{background:var(--bg-card);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.chart-section h3{font-size:16px;font-weight:600;color:var(--red);margin-bottom:16px}
+.chart-container{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:20px}
+.pie-legend{display:flex;flex-direction:column;gap:8px}.legend-item{display:flex;align-items:center;gap:8px;font-size:13px}.legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.bar-row{display:flex;align-items:center;margin-bottom:10px;gap:10px}.bar-label{width:80px;font-size:13px;text-align:right;flex-shrink:0}.bar-track{flex:1;height:24px;background:#f0ebe3;border-radius:12px;overflow:hidden}.bar-fill{height:100%;border-radius:12px;display:flex;align-items:center;padding-left:8px}.bar-value{font-size:11px;color:#fff;font-weight:600;white-space:nowrap}
+.summary-box{background:var(--bg-card);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);line-height:1.8;font-size:14px}
+.summary-box h3{font-size:16px;font-weight:600;color:var(--red);margin-bottom:12px}
+.report-actions{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.btn{padding:10px 24px;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}.btn:hover{opacity:.85}
+.btn-primary{background:var(--red);color:#fff}.btn-gold{background:var(--gold);color:#fff}.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}.btn-danger{background:#dc3545;color:#fff}
+.fab{position:fixed;bottom:76px;right:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--red-light));color:#fff;border:none;box-shadow:0 4px 12px rgba(139,0,0,.4);cursor:pointer;z-index:90;display:flex;align-items:center;justify-content:center}.fab:hover{transform:scale(1.1)}.fab svg{width:28px;height:28px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;padding:16px}.modal-overlay.show{display:flex}
+.modal{background:var(--bg);border-radius:var(--radius);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg-card);border-radius:var(--radius) var(--radius) 0 0;position:sticky;top:0;z-index:1}
+.modal-header h2{font-size:17px;color:var(--red)}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);padding:0 4px;line-height:1}
+.modal-body{padding:20px}
+.form-group{margin-bottom:14px}.form-group label{display:block;font-size:13px;font-weight:500;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:var(--bg-card);outline:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--gold)}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-row{display:flex;gap:10px}.form-row .form-group{flex:1}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--bg-card);border-radius:0 0 var(--radius) var(--radius);position:sticky;bottom:0}
+.detail-field{margin-bottom:12px}.detail-label{font-size:12px;color:var(--text-light);margin-bottom:2px}.detail-value{font-size:14px}
+.detail-minutes{background:#F5F0E5;border-radius:var(--radius-sm);padding:12px;margin-top:12px;white-space:pre-wrap;font-size:13px;line-height:1.7}
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);background:#333;color:#fff;padding:10px 24px;border-radius:20px;font-size:14px;z-index:300;opacity:0;transition:all .3s;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media print{.app-header,.bottom-nav,.fab,.report-actions{display:none!important}.page{display:none!important}#pageReport{display:block!important}body{padding:0;background:#fff}.stat-card,.chart-section,.summary-box{break-inside:avoid;box-shadow:none;border:1px solid #ddd}}
+@media(max-width:480px){.form-row{flex-direction:column;gap:0}.stat-cards{grid-template-columns:repeat(2,1fr)}.chart-container{flex-direction:column}.bar-label{width:60px;font-size:12px}}
+</style>
+</head>
+<body>
+<header class="app-header"><h1>&#x1F3EE; 老齐<span>时间管家</span></h1></header>
+
+<div id="pageToday" class="page active">
+  <div class="day-nav">
+    <button onclick="changeDay(-1)">&#9664; 前一天</button>
+    <div class="date-display" id="todayDate"></div>
+    <button onclick="changeDay(1)">后一天 &#9654;</button>
+    <button class="btn-today" onclick="goToday()">回到今天</button>
+  </div>
+  <div id="todayList"></div>
+</div>
+
+<div id="pageCalendar" class="page">
+  <div class="cal-header">
+    <button onclick="changeMonth(-1)">&#9664; 上月</button>
+    <div class="month-display" id="calMonth"></div>
+    <button onclick="changeMonth(1)">下月 &#9654;</button>
+  </div>
+  <div class="calendar-grid">
+    <div class="cal-weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+    <div class="cal-days" id="calDays"></div>
+  </div>
+  <div class="cal-day-events" id="calDayEvents" style="display:none">
+    <h3 id="calDayTitle"></h3>
+    <div id="calDayList"></div>
+  </div>
+</div>
+
+<div id="pageTrips" class="page">
+  <h2 style="font-size:18px;color:var(--red);margin-bottom:14px">&#x1F9F3; 出差管理</h2>
+  <div class="search-bar"><input type="text" id="tripSearch" placeholder="搜索出差记录（目的地、事由…）" oninput="renderTrips()"></div>
+  <div id="tripList"></div>
+</div>
+
+<div id="pageVisits" class="page">
+  <h2 style="font-size:18px;color:var(--red);margin-bottom:14px">&#x1F91D; 来访客人</h2>
+  <div class="search-bar"><input type="text" id="visitSearch" placeholder="搜索来访记录（单位、人员、事由…）" oninput="renderVisits()"></div>
+  <div id="visitList"></div>
+</div>
+
+<div id="pageReport" class="page">
+  <div class="cal-header">
+    <button onclick="changeReportMonth(-1)">&#9664; 上月</button>
+    <div class="month-display" id="reportMonth"></div>
+    <button onclick="changeReportMonth(1)">下月 &#9654;</button>
+  </div>
+  <div class="stat-cards" id="statCards"></div>
+  <div class="chart-section"><h3>&#x1F4CA; 时间分配占比</h3>
+    <div class="chart-container">
+      <canvas id="pieChart" width="220" height="220"></canvas>
+      <div class="pie-legend" id="pieLegend"></div>
+    </div>
+  </div>
+  <div class="chart-section"><h3>&#x1F4C8; 各类型时长排行</h3><div id="barChart"></div></div>
+  <div class="summary-box"><h3>&#x1F4DD; 月度总结</h3><div id="summaryText"></div></div>
+  <div class="report-actions">
+    <button class="btn btn-gold" onclick="copyReport()">&#x1F4CB; 复制报告</button>
+    <button class="btn btn-primary" onclick="printReport()">&#x1F5A8;&#xFE0F; 打印报告</button>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchPage('pageToday',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg><span>今日</span></button>
+  <button class="nav-item" onclick="switchPage('pageCalendar',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V10h16v11zm0-13H4V5h16v3z"/></svg><span>月历</span></button>
+  <button class="nav-item" onclick="switchPage('pageTrips',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg><span>出差</span></button>
+  <button class="nav-item" onclick="switchPage('pageVisits',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><span>来访</span></button>
+  <button class="nav-item" onclick="switchPage('pageReport',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg><span>报告</span></button>
+</nav>
+
+<button class="fab" onclick="openAddModal()" title="新增日程"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
+
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="addModalTitle">新增日程</h2><button class="modal-close" onclick="closeAddModal()">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>事项类型 *</label>
+        <select id="formType" onchange="toggleTypeFields()">
+          <option value="meeting">内部会议</option><option value="visit">接待来访</option>
+          <option value="trip">出差</option><option value="personal">个人事务</option><option value="other">其他</option>
+        </select></div>
+      <div class="form-group"><label>标题 *</label><input type="text" id="formTitle" placeholder="请输入事项标题"></div>
+      <div class="form-row">
+        <div class="form-group"><label>开始时间 *</label><input type="datetime-local" id="formStart"></div>
+        <div class="form-group"><label>结束时间 *</label><input type="datetime-local" id="formEnd"></div>
+      </div>
+      <div class="form-group"><label>地点</label><input type="text" id="formLocation" placeholder="请输入地点"></div>
+      <div id="meetingFields">
+        <div class="form-group"><label>参会人员</label><input type="text" id="formAttendees" placeholder="多人用逗号分隔"></div>
+        <div class="form-group"><label>会议纪要</label><textarea id="formMinutes" placeholder="记录会议要点…"></textarea></div>
+      </div>
+      <div id="visitFields" style="display:none">
+        <div class="form-group"><label>来访单位</label><input type="text" id="formVisitOrg" placeholder="来访单位名称"></div>
+        <div class="form-group"><label>来访人员</label><input type="text" id="formVisitPeople" placeholder="多人用逗号分隔"></div>
+        <div class="form-group"><label>来访事由</label><textarea id="formVisitReason" placeholder="来访事由说明…"></textarea></div>
+      </div>
+      <div id="tripFields" style="display:none">
+        <div class="form-group"><label>目的地</label><input type="text" id="formDest" placeholder="出差目的地"></div>
+        <div class="form-group"><label>出差事由</label><textarea id="formTripReason" placeholder="出差事由说明…"></textarea></div>
+      </div>
+      <div class="form-group"><label>备注</label><textarea id="formNotes" placeholder="其他备注信息…" style="min-height:60px"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveEvent()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="detailTitle">事项详情</h2><button class="modal-close" onclick="closeDetailModal()">&times;</button></div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="deleteCurrentEvent()">删除</button>
+      <button class="btn btn-gold" onclick="editCurrentEvent()">编辑</button>
+      <button class="btn btn-outline" onclick="closeDetailModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var SK='laoqi_events';
+var TN={meeting:'内部会议',visit:'接待来访',trip:'出差',personal:'个人事务',other:'其他'};
+var TC={meeting:'#1976D2',visit:'#E65100',trip:'#7B1FA2',personal:'#388E3C',other:'#757575'};
+var curDay=new Date(),calY,calM,repY,repM,selCalDay=null,editId=null,viewId=null;
+function load(){try{return JSON.parse(localStorage.getItem(SK))||[];}catch(e){return[];}}
+function persist(d){localStorage.setItem(SK,JSON.stringify(d));}
+function gid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,6);}
+function p2(n){return n<10?'0'+n:''+n;}
+function fmtD(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
+function fmtT(s){if(!s)return'';var d=new Date(s);return p2(d.getHours())+':'+p2(d.getMinutes());}
+function fmtDT(s){if(!s)return'';var d=new Date(s);return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());}
+function wkd(d){return['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];}
+function durH(a,b){if(!a||!b)return 0;return Math.max(0,(new Date(b)-new Date(a))/3600000);}
+function durTxt(h){if(h<1)return Math.round(h*60)+'分钟';if(h===Math.floor(h))return h+'小时';return h.toFixed(1)+'小时';}
+function dateOf(s){return s?s.substring(0,10):'';}
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2000);}
+
+function evCard(ev){
+  var h=durH(ev.start,ev.end);
+  var s='<div class="event-card type-'+ev.type+'" onclick="showDetail(\''+ev.id+'\')">';
+  s+='<div class="event-time">'+fmtT(ev.start)+'</div>';
+  s+='<div class="event-info"><div class="event-title">'+esc(ev.title)+'</div><div class="event-meta">';
+  s+='<span class="event-tag tag-'+ev.type+'">'+TN[ev.type]+'</span>';
+  if(ev.location)s+='<span>📍'+esc(ev.location)+'</span>';
+  if(h>0)s+='<span>⏱'+durTxt(h)+'</span>';
+  s+='</div></div></div>';
+  return s;
+}
+function emptyHTML(m){return'<div class="empty-state"><p>'+m+'</p></div>';}
+
+function switchPage(pid,btn){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.getElementById(pid).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  if(pid==='pageToday')renderToday();
+  if(pid==='pageCalendar')renderCalendar();
+  if(pid==='pageTrips')renderTrips();
+  if(pid==='pageVisits')renderVisits();
+  if(pid==='pageReport')renderReport();
+}
+
+function renderToday(){
+  var ds=fmtD(curDay);
+  document.getElementById('todayDate').innerHTML=ds+' <span class="weekday">'+wkd(curDay)+'</span>';
+  var evts=load().filter(function(e){return dateOf(e.start)===ds;}).sort(function(a,b){return a.start<b.start?-1:1;});
+  document.getElementById('todayList').innerHTML=evts.length?evts.map(evCard).join(''):emptyHTML('当天没有日程安排');
+}
+function changeDay(d){curDay=new Date(curDay.getTime()+d*86400000);renderToday();}
+function goToday(){curDay=new Date();renderToday();}
+
+function renderCalendar(){
+  document.getElementById('calMonth').textContent=calY+'年'+p2(calM+1)+'月';
+  var first=new Date(calY,calM,1),startDow=first.getDay(),dim=new Date(calY,calM+1,0).getDate();
+  var prevDim=new Date(calY,calM,0).getDate();
+  var evts=load(),ed={};
+  evts.forEach(function(e){ed[dateOf(e.start)]=true;});
+  var today=fmtD(new Date()),html='',total=Math.ceil((startDow+dim)/7)*7;
+  for(var i=0;i<total;i++){
+    var dn,cls='cal-day',ds;
+    if(i<startDow){dn=prevDim-startDow+i+1;cls+=' other-month';var pm=calM===0?12:calM;var py=calM===0?calY-1:calY;ds=py+'-'+p2(pm)+'-'+p2(dn);}
+    else if(i-startDow>=dim){dn=i-startDow-dim+1;cls+=' other-month';var nm=calM+2>12?1:calM+2;var ny=calM+2>12?calY+1:calY;ds=ny+'-'+p2(nm)+'-'+p2(dn);}
+    else{dn=i-startDow+1;ds=calY+'-'+p2(calM+1)+'-'+p2(dn);if(ds===today)cls+=' today';}
+    if(selCalDay===ds)cls+=' selected';
+    html+='<div class="'+cls+'" onclick="selectCalDay(\''+ds+'\')">'+dn+(ed[ds]?'<span class="dot"></span>':'')+'</div>';
+  }
+  document.getElementById('calDays').innerHTML=html;
+  if(selCalDay)showCalDayEvts(selCalDay);
+}
+function changeMonth(d){calM+=d;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}selCalDay=null;document.getElementById('calDayEvents').style.display='none';renderCalendar();}
+function selectCalDay(ds){selCalDay=ds;renderCalendar();showCalDayEvts(ds);}
+function showCalDayEvts(ds){
+  var evts=load().filter(function(e){return dateOf(e.start)===ds;}).sort(function(a,b){return a.start<b.start?-1:1;});
+  document.getElementById('calDayEvents').style.display='block';
+  document.getElementById('calDayTitle').textContent=ds+' 日程 ('+evts.length+'项)';
+  document.getElementById('calDayList').innerHTML=evts.length?evts.map(evCard).join(''):emptyHTML('当天没有日程');
+}
+
+function renderTrips(){
+  var q=(document.getElementById('tripSearch').value||'').toLowerCase();
+  var evts=load().filter(function(e){return e.type==='trip';});
+  if(q)evts=evts.filter(function(e){return(e.title||'').toLowerCase().indexOf(q)>=0||(e.destination||'').toLowerCase().indexOf(q)>=0||(e.tripReason||'').toLowerCase().indexOf(q)>=0;});
+  evts.sort(function(a,b){return b.start<a.start?-1:1;});
+  if(!evts.length){document.getElementById('tripList').innerHTML=emptyHTML('暂无出差记录');return;}
+  var html='';
+  evts.forEach(function(ev){
+    var h=durH(ev.start,ev.end);
+    html+='<div class="event-card type-trip" onclick="showDetail(\''+ev.id+'\')">';
+    html+='<div class="event-time">'+dateOf(ev.start)+'</div><div class="event-info"><div class="event-title">'+esc(ev.title)+'</div><div class="event-meta">';
+    if(ev.destination)html+='<span>📍'+esc(ev.destination)+'</span>';
+    if(h>0)html+='<span>⏱'+durTxt(h)+'</span>';
+    if(ev.tripReason)html+='<span>'+esc(ev.tripReason.substring(0,30))+'</span>';
+    html+='</div></div></div>';
+  });
+  document.getElementById('tripList').innerHTML=html;
+}
+
+function renderVisits(){
+  var q=(document.getElementById('visitSearch').value||'').toLowerCase();
+  var evts=load().filter(function(e){return e.type==='visit';});
+  if(q)evts=evts.filter(function(e){return(e.title||'').toLowerCase().indexOf(q)>=0||(e.visitOrg||'').toLowerCase().indexOf(q)>=0||(e.visitPeople||'').toLowerCase().indexOf(q)>=0||(e.visitReason||'').toLowerCase().indexOf(q)>=0;});
+  evts.sort(function(a,b){return b.start<a.start?-1:1;});
+  if(!evts.length){document.getElementById('visitList').innerHTML=emptyHTML('暂无来访记录');return;}
+  var html='';
+  evts.forEach(function(ev){
+    html+='<div class="event-card type-visit" onclick="showDetail(\''+ev.id+'\')">';
+    html+='<div class="event-time">'+dateOf(ev.start)+'</div><div class="event-info"><div class="event-title">'+esc(ev.title)+'</div><div class="event-meta">';
+    if(ev.visitOrg)html+='<span>🏢'+esc(ev.visitOrg)+'</span>';
+    if(ev.visitPeople)html+='<span>👤'+esc(ev.visitPeople)+'</span>';
+    if(ev.visitReason)html+='<span>'+esc(ev.visitReason.substring(0,30))+'</span>';
+    html+='</div></div></div>';
+  });
+  document.getElementById('visitList').innerHTML=html;
+}
+
+function renderReport(){
+  document.getElementById('reportMonth').textContent=repY+'年'+p2(repM+1)+'月';
+  var prefix=repY+'-'+p2(repM+1);
+  var evts=load().filter(function(e){return dateOf(e.start).substring(0,7)===prefix;});
+  var totalH=0,cnt={meeting:0,visit:0,trip:0,personal:0,other:0},hrs={meeting:0,visit:0,trip:0,personal:0,other:0};
+  evts.forEach(function(e){var h=durH(e.start,e.end);totalH+=h;cnt[e.type]=(cnt[e.type]||0)+1;hrs[e.type]=(hrs[e.type]||0)+h;});
+  document.getElementById('statCards').innerHTML=
+    '<div class="stat-card"><div class="num">'+evts.length+'</div><div class="label">总事项数</div></div>'+
+    '<div class="stat-card"><div class="num">'+(totalH>0?durTxt(totalH):'0')+'</div><div class="label">总时长</div></div>'+
+    '<div class="stat-card"><div class="num">'+cnt.meeting+'</div><div class="label">会议数</div></div>'+
+    '<div class="stat-card"><div class="num">'+cnt.trip+'</div><div class="label">出差数</div></div>'+
+    '<div class="stat-card"><div class="num">'+cnt.visit+'</div><div class="label">来访数</div></div>';
+  drawPie(hrs,totalH);
+  drawBars(hrs);
+  genSummary(evts,cnt,hrs,totalH);
+}
+function changeReportMonth(d){repM+=d;if(repM<0){repM=11;repY--;}if(repM>11){repM=0;repY++;}renderReport();}
+
+function drawPie(hrs,totalH){
+  var cv=document.getElementById('pieChart'),ctx=cv.getContext('2d');
+  var w=cv.width,h=cv.height;ctx.clearRect(0,0,w,h);
+  var cx=w/2,cy=h/2,r=Math.min(cx,cy)-10;
+  var types=['meeting','visit','trip','personal','other'];
+  if(totalH===0){
+    ctx.fillStyle='#e0d8c8';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#999';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('暂无数据',cx,cy+5);
+    document.getElementById('pieLegend').innerHTML='';return;
+  }
+  var sa=-Math.PI/2,legHTML='';
+  types.forEach(function(t){
+    var v=hrs[t]||0;if(v<=0)return;
+    var pct=v/totalH,sw=pct*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,sa,sa+sw);ctx.closePath();ctx.fillStyle=TC[t];ctx.fill();
+    if(pct>0.05){
+      var ma=sa+sw/2,lx=cx+Math.cos(ma)*r*0.65,ly=cy+Math.sin(ma)*r*0.65;
+      ctx.fillStyle='#fff';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(Math.round(pct*100)+'%',lx,ly);
+    }
+    sa+=sw;
+    legHTML+='<div class="legend-item"><span class="legend-dot" style="background:'+TC[t]+'"></span>'+TN[t]+' '+durTxt(v)+' ('+Math.round(v/totalH*100)+'%)</div>';
+  });
+  document.getElementById('pieLegend').innerHTML=legHTML;
+}
+
+function drawBars(hrs){
+  var types=['meeting','visit','trip','personal','other'];
+  var maxH=0;types.forEach(function(t){if(hrs[t]>maxH)maxH=hrs[t];});
+  if(maxH===0)maxH=1;
+  var html='';
+  types.forEach(function(t){
+    var v=hrs[t]||0,pct=Math.max(v/maxH*100,v>0?8:0);
+    html+='<div class="bar-row"><div class="bar-label">'+TN[t]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+TC[t]+'"><span class="bar-value">'+durTxt(v)+'</span></div></div></div>';
+  });
+  document.getElementById('barChart').innerHTML=html;
+}
+
+function genSummary(evts,cnt,hrs,totalH){
+  if(evts.length===0){document.getElementById('summaryText').innerHTML='<p>本月暂无日程记录。</p>';return;}
+  var lines=[];
+  lines.push('本月共安排 <b>'+evts.length+'</b> 项事务，总计用时 <b>'+durTxt(totalH)+'</b>。');
+  var maxT='meeting',maxH=0;
+  ['meeting','visit','trip','personal','other'].forEach(function(t){if(hrs[t]>maxH){maxH=hrs[t];maxT=t;}});
+  if(totalH>0)lines.push('时间主要花在 <b>'+TN[maxT]+'</b> 上，占比 <b>'+Math.round(hrs[maxT]/totalH*100)+'%</b>。');
+  if(cnt.meeting>0)lines.push('共召开 <b>'+cnt.meeting+'</b> 次会议，用时 <b>'+durTxt(hrs.meeting)+'</b>'+(totalH>0?'，占总时长 <b>'+Math.round(hrs.meeting/totalH*100)+'%</b>':'')+'。');
+  if(cnt.trip>0){
+    var tripDays=new Set();
+    evts.filter(function(e){return e.type==='trip';}).forEach(function(e){
+      var s=new Date(e.start),en=new Date(e.end);
+      while(s<=en){tripDays.add(fmtD(s));s=new Date(s.getTime()+86400000);}
+    });
+    lines.push('出差 <b>'+cnt.trip+'</b> 次，涉及 <b>'+tripDays.size+'</b> 天，用时 <b>'+durTxt(hrs.trip)+'</b>。');
+  }
+  if(cnt.visit>0)lines.push('接待来访 <b>'+cnt.visit+'</b> 次，用时 <b>'+durTxt(hrs.visit)+'</b>。');
+  if(cnt.personal>0)lines.push('个人事务 <b>'+cnt.personal+'</b> 项，用时 <b>'+durTxt(hrs.personal)+'</b>。');
+  document.getElementById('summaryText').innerHTML=lines.map(function(l){return'<p>'+l+'</p>';}).join('');
+}
+
+function copyReport(){
+  var evts=load().filter(function(e){return dateOf(e.start).substring(0,7)===repY+'-'+p2(repM+1);});
+  var totalH=0,cnt={meeting:0,visit:0,trip:0,personal:0,other:0},hrs={meeting:0,visit:0,trip:0,personal:0,other:0};
+  evts.forEach(function(e){var h=durH(e.start,e.end);totalH+=h;cnt[e.type]++;hrs[e.type]+=h;});
+  var txt='【老齐时间管家 - '+repY+'年'+p2(repM+1)+'月 月度报告】\n\n';
+  txt+='📊 数据概览\n';
+  txt+='总事项数：'+evts.length+'\n';
+  txt+='总时长：'+durTxt(totalH)+'\n';
+  txt+='会议数：'+cnt.meeting+'\n';
+  txt+='出差数：'+cnt.trip+'\n';
+  txt+='来访数：'+cnt.visit+'\n\n';
+  txt+='📈 时间分配\n';
+  ['meeting','visit','trip','personal','other'].forEach(function(t){
+    if(hrs[t]>0)txt+=TN[t]+'：'+durTxt(hrs[t])+(totalH>0?' ('+Math.round(hrs[t]/totalH*100)+'%)':'')+'\n';
+  });
+  txt+='\n📝 月度总结\n';
+  txt+=document.getElementById('summaryText').innerText;
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){toast('报告已复制到剪贴板');});}
+  else{var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('报告已复制');}
+}
+function printReport(){window.print();}
+
+function toggleTypeFields(){
+  var t=document.getElementById('formType').value;
+  document.getElementById('meetingFields').style.display=t==='meeting'?'block':'none';
+  document.getElementById('visitFields').style.display=t==='visit'?'block':'none';
+  document.getElementById('tripFields').style.display=t==='trip'?'block':'none';
+}
+
+function openAddModal(){
+  editId=null;
+  document.getElementById('addModalTitle').textContent='新增日程';
+  document.getElementById('formType').value='meeting';
+  document.getElementById('formTitle').value='';
+  var now=new Date(),later=new Date(now.getTime()+3600000);
+  document.getElementById('formStart').value=fmtD(now)+'T'+p2(now.getHours())+':'+p2(now.getMinutes());
+  document.getElementById('formEnd').value=fmtD(later)+'T'+p2(later.getHours())+':'+p2(later.getMinutes());
+  document.getElementById('formLocation').value='';
+  document.getElementById('formAttendees').value='';
+  document.getElementById('formMinutes').value='';
+  document.getElementById('formVisitOrg').value='';
+  document.getElementById('formVisitPeople').value='';
+  document.getElementById('formVisitReason').value='';
+  document.getElementById('formDest').value='';
+  document.getElementById('formTripReason').value='';
+  document.getElementById('formNotes').value='';
+  toggleTypeFields();
+  document.getElementById('addModal').classList.add('show');
+}
+function closeAddModal(){document.getElementById('addModal').classList.remove('show');}
+
+function saveEvent(){
+  var type=document.getElementById('formType').value;
+  var title=document.getElementById('formTitle').value.trim();
+  var start=document.getElementById('formStart').value;
+  var end=document.getElementById('formEnd').value;
+  if(!title){toast('请输入标题');return;}
+  if(!start||!end){toast('请选择开始和结束时间');return;}
+  if(new Date(end)<new Date(start)){toast('结束时间不能早于开始时间');return;}
+  var ev={
+    id:editId||gid(),type:type,title:title,start:start,end:end,
+    location:document.getElementById('formLocation').value.trim(),
+    notes:document.getElementById('formNotes').value.trim(),
+    attendees:document.getElementById('formAttendees').value.trim(),
+    minutes:document.getElementById('formMinutes').value.trim(),
+    visitOrg:document.getElementById('formVisitOrg').value.trim(),
+    visitPeople:document.getElementById('formVisitPeople').value.trim(),
+    visitReason:document.getElementById('formVisitReason').value.trim(),
+    destination:document.getElementById('formDest').value.trim(),
+    tripReason:document.getElementById('formTripReason').value.trim()
+  };
+  var evts=load();
+  if(editId){var idx=evts.findIndex(function(e){return e.id===editId;});if(idx>=0)evts[idx]=ev;else evts.push(ev);}
+  else{evts.push(ev);}
+  persist(evts);
+  closeAddModal();
+  toast(editId?'日程已更新':'日程已添加');
+  renderAll();
+}
+
+function showDetail(id){
+  var evts=load(),ev=evts.find(function(e){return e.id===id;});
+  if(!ev)return;
+  viewId=id;
+  document.getElementById('detailTitle').textContent=TN[ev.type]+' - '+ev.title;
+  var html='';
+  html+='<div class="detail-field"><div class="detail-label">类型</div><div class="detail-value"><span class="event-tag tag-'+ev.type+'">'+TN[ev.type]+'</span></div></div>';
+  html+='<div class="detail-field"><div class="detail-label">标题</div><div class="detail-value">'+esc(ev.title)+'</div></div>';
+  html+='<div class="detail-field"><div class="detail-label">开始时间</div><div class="detail-value">'+fmtDT(ev.start)+'</div></div>';
+  html+='<div class="detail-field"><div class="detail-label">结束时间</div><div class="detail-value">'+fmtDT(ev.end)+'</div></div>';
+  var h=durH(ev.start,ev.end);
+  if(h>0)html+='<div class="detail-field"><div class="detail-label">时长</div><div class="detail-value">'+durTxt(h)+'</div></div>';
+  if(ev.location)html+='<div class="detail-field"><div class="detail-label">地点</div><div class="detail-value">'+esc(ev.location)+'</div></div>';
+  if(ev.type==='meeting'){
+    if(ev.attendees)html+='<div class="detail-field"><div class="detail-label">参会人员</div><div class="detail-value">'+esc(ev.attendees)+'</div></div>';
+    if(ev.minutes)html+='<div class="detail-field"><div class="detail-label">会议纪要</div><div class="detail-minutes">'+esc(ev.minutes)+'</div></div>';
+  }
+  if(ev.type==='visit'){
+    if(ev.visitOrg)html+='<div class="detail-field"><div class="detail-label">来访单位</div><div class="detail-value">'+esc(ev.visitOrg)+'</div></div>';
+    if(ev.visitPeople)html+='<div class="detail-field"><div class="detail-label">来访人员</div><div class="detail-value">'+esc(ev.visitPeople)+'</div></div>';
+    if(ev.visitReason)html+='<div class="detail-field"><div class="detail-label">来访事由</div><div class="detail-value">'+esc(ev.visitReason)+'</div></div>';
+  }
+  if(ev.type==='trip'){
+    if(ev.destination)html+='<div class="detail-field"><div class="detail-label">目的地</div><div class="detail-value">'+esc(ev.destination)+'</div></div>';
+    if(ev.tripReason)html+='<div class="detail-field"><div class="detail-label">出差事由</div><div class="detail-value">'+esc(ev.tripReason)+'</div></div>';
+  }
+  if(ev.notes)html+='<div class="detail-field"><div class="detail-label">备注</div><div class="detail-value">'+esc(ev.notes)+'</div></div>';
+  document.getElementById('detailBody').innerHTML=html;
+  document.getElementById('detailModal').classList.add('show');
+}
+function closeDetailModal(){document.getElementById('detailModal').classList.remove('show');}
+
+function editCurrentEvent(){
+  var evts=load(),ev=evts.find(function(e){return e.id===viewId;});
+  if(!ev)return;
+  closeDetailModal();
+  editId=ev.id;
+  document.getElementById('addModalTitle').textContent='编辑日程';
+  document.getElementById('formType').value=ev.type;
+  document.getElementById('formTitle').value=ev.title||'';
+  document.getElementById('formStart').value=ev.start||'';
+  document.getElementById('formEnd').value=ev.end||'';
+  document.getElementById('formLocation').value=ev.location||'';
+  document.getElementById('formAttendees').value=ev.attendees||'';
+  document.getElementById('formMinutes').value=ev.minutes||'';
+  document.getElementById('formVisitOrg').value=ev.visitOrg||'';
+  document.getElementById('formVisitPeople').value=ev.visitPeople||'';
+  document.getElementById('formVisitReason').value=ev.visitReason||'';
+  document.getElementById('formDest').value=ev.destination||'';
+  document.getElementById('formTripReason').value=ev.tripReason||'';
+  document.getElementById('formNotes').value=ev.notes||'';
+  toggleTypeFields();
+  document.getElementById('addModal').classList.add('show');
+}
+
+function deleteCurrentEvent(){
+  if(!confirm('确定要删除这条日程吗？'))return;
+  var evts=load().filter(function(e){return e.id!==viewId;});
+  persist(evts);
+  closeDetailModal();
+  toast('日程已删除');
+  renderAll();
+}
+
+function renderAll(){renderToday();renderCalendar();renderTrips();renderVisits();renderReport();}
+
+// Init
+var now=new Date();
+calY=now.getFullYear();calM=now.getMonth();
+repY=now.getFullYear();repM=now.getMonth();
+renderAll();
+</script>
+</body>
+</html>
