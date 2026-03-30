@@ -66,6 +66,10 @@ body{font-family:"Source Han Sans CN","PingFang SC","Microsoft YaHei","Noto Sans
 .di .ck{width:18px;height:18px;border:2px solid #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:transparent;transition:all .12s}
 .di.sel .ck{background:var(--gold);border-color:var(--gold);color:#003894}
 .di .nm{font-size:13px;line-height:1.4}
+.add-dish-row{display:flex;gap:6px;margin-top:8px;align-items:center}
+.add-dish-row input{flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none}
+.add-dish-row input:focus{border-color:var(--gold)}
+.add-dish-row button{padding:6px 14px;background:var(--gold);color:#003894;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 
 .bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:14px;z-index:100;box-shadow:0 -4px 12px rgba(0,0,0,.05)}
 .bar .cnt{font-size:14px;color:var(--dim)}
@@ -137,17 +141,49 @@ body{font-family:"Source Han Sans CN","PingFang SC","Microsoft YaHei","Noto Sans
 </div>
 <script>
 (function(){
+  // Pure JS SHA-256 (no Web Crypto API needed, works on HTTP)
+  function sha256(s){
+    function rr(n,x){return(x>>>n)|(x<<(32-n))}
+    function ch(x,y,z){return(x&y)^(~x&z)}
+    function maj(x,y,z){return(x&y)^(x&z)^(y&z)}
+    function s0(x){return rr(2,x)^rr(13,x)^rr(22,x)}
+    function s1(x){return rr(6,x)^rr(11,x)^rr(25,x)}
+    function g0(x){return rr(7,x)^rr(18,x)^(x>>>3)}
+    function g1(x){return rr(17,x)^rr(19,x)^(x>>>10)}
+    var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+      0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+      0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+      0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+      0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+      0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+      0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+      0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+    var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    var msg=[];
+    for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);if(c<128)msg.push(c);else if(c<2048){msg.push(192|(c>>6));msg.push(128|(c&63))}else{msg.push(224|(c>>12));msg.push(128|((c>>6)&63));msg.push(128|(c&63))}}
+    var l=msg.length*8;msg.push(128);while(msg.length%64!==56)msg.push(0);
+    for(var i=56;i>=0;i-=8)msg.push((l/Math.pow(2,i))&255);
+    for(var off=0;off<msg.length;off+=64){
+      var w=[];for(var i=0;i<16;i++)w[i]=(msg[off+i*4]<<24)|(msg[off+i*4+1]<<16)|(msg[off+i*4+2]<<8)|msg[off+i*4+3];
+      for(var i=16;i<64;i++)w[i]=(g1(w[i-2])+w[i-7]+g0(w[i-15])+w[i-16])|0;
+      var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+      for(var i=0;i<64;i++){var t1=(h+s1(e)+ch(e,f,g)+K[i]+w[i])|0;var t2=(s0(a)+maj(a,b,c))|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0}
+      H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+    }
+    var hex='';for(var i=0;i<8;i++)for(var j=28;j>=0;j-=4)hex+='0123456789abcdef'.charAt((H[i]>>>j)&15);
+    return hex;
+  }
   var HASH='e1388ce88b0c9e96c537c192421b3708952a9834de9ef4a7c61271764f6aab32';
   var SKEY='banquet_unlocked';
   if(sessionStorage.getItem(SKEY)==='1'){document.getElementById('lockScreen').classList.add('unlocked')}
   window.doUnlock=function(){
     var pwd=document.getElementById('lockPwd').value;
     if(!pwd){document.getElementById('lockErr').textContent='请输入密码';return}
-    crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd)).then(function(buf){
-      var hex=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+    try{
+      var hex=sha256(pwd);
       if(hex===HASH){sessionStorage.setItem(SKEY,'1');document.getElementById('lockScreen').classList.add('unlocked')}
       else{document.getElementById('lockErr').textContent='密码错误，请重试';document.getElementById('lockPwd').value='';document.getElementById('lockPwd').focus()}
-    });
+    }catch(e){document.getElementById('lockErr').textContent='验证出错，请重试'}
   };
 })();
 </script>
@@ -203,29 +239,35 @@ function doLogout(){
 var D=[
 {n:"凉菜",ic:"🥗",s:[
 {n:"海鲜凉菜",d:["咸水海白虾","乳黄瓜老醋蛰头","捞汁海花螺","捞汁香芹海参","酥骨舟山带鱼","贝尖儿黄瓜花","贝尖拌丝瓜尖","老醋蛰头鲜花生","盐水青柠海白虾"]},
+{n:"高端精品冷盘",d:["松露鹅肝冻","金箔和牛刺身","鱼子酱配蟹肉慕斯","黑松露鲜鲍刺身","低温慢煮三文鱼","柚子醋渍北极贝","白松露芝士配帕尔马火腿","鹅肝配无花果酱","冰镇鲍鱼片"]},
 {n:"粤式/特色凉菜",d:["变蛋黑鱼籽酱","自制花雕熟醉蟹","老上海五香熏鱼","老卤去骨猪蹄","老汤自制酱肘花","老汤酱香皮冻"]},
 {n:"川味/香辣凉菜",d:["擂椒拌皮蛋","柠檬剁椒凤爪","青芥美极木耳"]},
 {n:"东北/家常凉菜",d:["东北蘸酱菜","五香酱牛腱子","凉拌猪耳朵","哈尔滨风干肠","丝瓜尖拌桃仁","坚果蓝莓山药泥","桂花蓝莓山药"]},
 {n:"山东风味拌菜",d:["捞汁爽口萝卜","捞汁自产蔬菜","捞汁花菜杆","核桃仁拌荠菜","桂花糖蓝莓山药","桂花马蹄圣女果","清口自产苤蓝丝","爽口捞汁菜根香","爽口桂花马蹄","爽口自产腌菜","爽口自产菜根","爽脆捞汁海笋","皮蛋花生拌青瓜","素什锦","老醋皮蛋花生","花生青瓜皮蛋","苤蓝腌香菜根","萝卜黄瓜蘸酱菜","青瓜拌牛肉","青瓜老醋蜇头","青瓜花生拌牛肉","青瓜花生皮蛋","香椿拌北豆腐","香椿苗拌核桃仁"]}
 ]},
 {n:"热菜",ic:"🔥",s:[
+{n:"顶级食材",d:["清蒸澳洲龙虾","香煎法式鹅肝","铁板神户牛肉","金汤花胶炖鸡","黑松露焗澳带","XO酱爆加拿大象拔蚌","鲍汁扣辽参","蒜蓉芝士焗波龙","香煎银鳕鱼配松露汁"]},
 {n:"海鲜（高端宴请）",d:["五粒干烧大乌参","章丘大葱烧辽参","响螺片炒鲜芦笋","牛肝菌炒鲜芦笋","姜葱上汤焗海蟹","姜葱焗炒梭子蟹","清蒸兴化大闸蟹","清蒸泰州大闸蟹","苏叶清蒸大闸蟹","清蒸去骨东星斑","油焖泰国黑虎虾","油焖茄汁软皮虾","油焖黑虎大对虾","宫爆黑虎大虾球","果仁宫爆大虾球","基围虾鲜牛百叶","基围虾鳜鱼片","白灼青笋鲜鲍片","砂锅百合焗鲍鱼","砂锅鲍菇焗海虾","蒜籽烧野生黄鱼","红烧东海大刀鱼","蒜蓉粉丝蒸澳带","蒜蓉粉丝日月贝","蒜蓉粉丝蒸扇贝","豉汁粉丝蒸日月贝","黄蛤煮大豆腐","海鲜菇白菜心象牙白萝卜","象牙白烧大乌参"]},
 {n:"粤菜（高端清鲜）",d:["咸肉鲜笋腌笃鲜","黄鸡鲜笋腌笃鲜","双蛋上汤沁苋菜","上汤灼鲜豌豆尖","百花蒸酿秋葵","砂锅蒜蓉焗海鲜","金牌广式炸乳鸽","黑椒五彩和牛粒","热捞澳洲雪花牛肋","金汤针菇雪花牛"]},
-{n:"川菜/香辣",d:["四川鲜煮猪蹄","川汁温煮三黄鸡","川汁白斩三黄鸡","豆豉麻椒小炒肉","麻椒小炒梅花肉","螺丝椒炒梅花肉","螺丝椒炒走地鸡","香辣带骨小羔羊","香辣莲藕炖羊肉","香辣萝卜炖羊排","香辣萝卜炖羔羊"]},
+{n:"创意融合菜",d:["日式照烧银鳕鱼","泰式青柠蒸鲈鱼","黑蒜子牛仔骨","法式黑椒煎羊排","意式香草焗鸡腿","咖喱皇焗蟹","芝士焗龙虾","味噌腌烤三文鱼","柠檬香草煎鲷鱼"]},
+{n:"川菜/香辣",d:["四川鲜煮猪蹄","川汁温煮三黄鸡","川汁白斩三黄鸡","豆豉麻椒小炒肉","麻椒小炒梅花肉","螺丝椒炒梅花肉","螺丝椒炒走地鸡","香辣带骨小羔羊","香辣莲藕炖羊肉","香辣萝卜炖羊排","香辣萝卜炖羔羊","水煮牛肉","毛血旺"]},
+{n:"地方经典",d:["小鸡炖蘑菇","铁锅炖大鹅","东坡肉","龙井虾仁","白切鸡","脆皮烧鹅","梅菜扣肉","叫花鸡","红烧狮子头","糖醋黄河鲤鱼","松鼠鳜鱼","北京烤鸭","蒜泥白肉","夫妻肺片","盐焗鸡","清蒸武昌鱼","西湖醋鱼","蚝油牛肉","腊味合蒸"]},
 {n:"东北菜（主场特色）",d:["东北排骨一锅出","东北溜肉段","东北粉丝烩酸菜","内蒙巴盟烩酸菜","毡房卤肉烩酸菜","卤肉土豆烩酸菜","砂锅血肠炖酸菜","排骨炖油豆角","红烧肉焖油豆角","红烧肉烧白不老","黑猪肉炖白不老","丸子粉条炖白菜","丸子豆腐炖白菜","白菜粉条狮子头","锅包肉","自制电烤羊肉串","孜然烤法式羊排","内蒙羊排炖萝卜","土猪肉烧油豆角","铁锅茄子炖土豆","自产白菜炖豆腐","冻豆腐魔芋结","炒蚕蛹"]},
 {n:"家常菜/清炒",d:["小葱摊自产鸡蛋","山药木耳炒荷兰豆","木耳马蹄炒西芹","核桃仁清炒西芹","梅花肉炒自产青椒","百合清炒西芹","贵族南瓜炒百合","自产芹菜炒百合","茼蒿小油菜","茼蒿莲藕青笋木耳","白萝卜莴笋莲藕冬瓜","小腊肠炒芥蓝面","小腊肠炒黄瓜钱","广东腊味炒蜜豆","腊肠桃仁芥兰肚","腊肠生炒芥兰苗","小狮子头炖白菜豆腐","狮子头煮卞萝卜丝","白菜芋结红烧肉","椒丝豉油淋秋葵","豉油汁白灼芥兰","砂锅生炒芥兰","砂锅酱烧小青瓜","雪花牛肉卷羔羊上脑卷","鱼羊鲜煮卞萝卜","鲜马蹄清炒西芹","马蹄木耳炒芥兰","马蹄木耳炒西芹","马蹄木耳鲜芦笋","酸菜丝东北木耳","大白菜鲜香菇绣球菌","粉条丸子熬白菜","白菜芋结红烧肉"]},
 {n:"火锅",d:["和牛火锅"]}
 ]},
 {n:"汤品",ic:"🍲",s:[
 {n:"粤式滋补汤",d:["国宴菊花豆腐汤","石斛甘蔗马蹄玉米汤","石斛红枣炖乳鸽","石斛花松茸炖花胶","鲜松茸炖鸡清汤","红枣枸杞乌鸡汤"]},
+{n:"经典名汤",d:["佛跳墙","虫草花炖水鸭","椰皇炖竹丝鸡","花胶响螺炖老鸡","竹荪山珍老鸭汤","西洋参炖乌鸡","松茸土鸡汤","霸王花猪骨汤","猴头菇炖排骨"]},
 {n:"海鲜/清汤",d:["敖汉小米煨大连海参","海鲜乌鱼蛋汤"]}
 ]},
 {n:"主食",ic:"🍚",s:[
 {n:"北方主食",d:["卤肉萝卜粉条蒸饺","家常烙肉饼","家常猪肉大葱饼","家常猪肉馅饼","猪肉白菜水饺","酱肉萝卜粉条包子","小笼包两款（荤素）","敖汉新小米香粥","煮敖汉糯玉米","火锅面"]},
+{n:"精品主食",d:["松露炒饭","鲍汁捞饭","蟹粉小笼包","干炒牛河","鲜虾云吞面","XO酱炒年糕","鲍鱼粥","海鲜焗饭","蟹黄汤包","葱油拌面","担担面"]},
 {n:"西北风味",d:["荠菜鸡蛋炝锅面","西北臊子干拌面"]}
 ]},
 {n:"水果",ic:"🍇",s:[
-{n:"",d:["圣女果甜山楂黄骅冬枣","开心果蓝莓青提","樱桃金桔草莓","樱桃金桔青提","水果拼盘","砂糖橘草莓樱桃李子","葡萄","葵花籽开心果","青提圣女果"]}
+{n:"固定搭配（按季节调整）",d:["经典迎宾果盘（圣女果+青提+草莓+金桔+蓝莓）","时令精品果拼（当季5种鲜果）","热带风情果盘（芒果+火龙果+百香果+莲雾+山竹）","坚果鲜果拼（开心果+蓝莓+青提+冬枣+葵花籽）","四季鲜果盘（樱桃+金桔+砂糖橘+草莓+李子）"]}
 ]}
 ];
 
@@ -250,10 +292,13 @@ function render(q){
           +'<input type="checkbox"'+(on?" checked":"")+'>'
           +'<span class="ck">✓</span><span class="nm">'+esc(dish)+'</span></label>';
       });
-      if(!items)return;
+      if(!items&&!q)items=''; // show add button even if no items when not searching
+      if(!items&&q)return;
       body+='<div class="sub">';
       if(sub.n)body+='<h3>'+esc(sub.n)+'</h3>';
-      body+='<div class="grid">'+items+'</div></div>';
+      body+='<div class="grid">'+items+'</div>';
+      if(!q)body+='<div class="add-dish-row"><input type="text" placeholder="输入菜名添加..." data-cat="'+esc(cat.n)+'" data-sub="'+esc(sub.n)+'" onkeydown="if(event.key===\'Enter\')addCustomDish(this)"><button onclick="addCustomDish(this.previousElementSibling)">+ 加菜</button></div>';
+      body+='</div>';
     });
     if(!body)return;
     var sc=0;sel.forEach(function(id){if(id.indexOf(cat.n+"||")===0)sc++});
@@ -292,6 +337,24 @@ function updBadge(){
     b.textContent=n;
     if(n)b.classList.add("on");else b.classList.remove("on");
   });
+}
+
+function addCustomDish(input){
+  var name=input.value.trim();
+  if(!name){input.focus();return}
+  var catN=input.dataset.cat;
+  var subN=input.dataset.sub;
+  // Add to data
+  D.forEach(function(cat){
+    if(cat.n===catN)cat.s.forEach(function(sub){
+      if(sub.n===subN&&sub.d.indexOf(name)<0)sub.d.push(name);
+    });
+  });
+  // Auto-select
+  var id=catN+"||"+subN+"||"+name;
+  sel.add(id);
+  input.value='';
+  updCnt();render(document.getElementById("iSearch").value);
 }
 
 function clearAll(){sel.clear();updCnt();render(document.getElementById("iSearch").value)}
